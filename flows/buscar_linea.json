@@ -9,6 +9,7 @@
     { "action": "wait", "wait_time": 1}
   ],
   "salir_buscar_linea": [
-    { "action": "click", "target": "buscar_linea.salir_BCCS_button","clicks": 1}
+    { "action": "wait", "wait_time": 1},
+    { "action": "click", "target": "buscar_linea.salir_BCCS_button","clicks": 1,"transitorio": true}
   ]
 }

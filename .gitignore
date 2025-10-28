@@ -8,3 +8,4 @@ registros_prueba.json
 storage/logs/server.log
 *.log
 assets/images_debug/
+storage/cookies/

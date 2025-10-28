@@ -28,7 +28,7 @@ class TaskManagerMigracion:
         self.mail_service = MailService()
 
         # Configuración general
-        self.lote_max = 10
+        self.lote_max = 30
         self.reintentos_max = 3
         self.delay_entre_migraciones = 1
         self.delay_sin_pendientes = 30

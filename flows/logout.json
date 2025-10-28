@@ -2,6 +2,7 @@
   "meta": {"name": "logout","retries": 1},
 
   "flow": [
+    { "action": "wait", "wait_time": 1},
     { "action": "click", "target": "logout.salir_BCCS_button","clicks": 1,"transitorio": true},
     { "action": "wait", "wait_time": 1},
     { "action": "click", "target": "logout.salir_menu_button","clicks": 1,"transitorio": true},

@@ -78,8 +78,11 @@ class WebExecutor:
             except Exception as e:
                 self.logger.error(f"❌ Error ejecutando acción '{action}': {e}", exc_info=True)
 
-        # 💾 Guardar sesión al terminar el bloque
-        await self.browser_manager.save_storage()
+        # 💾 Guardar sesión solo si hubo cambio
+        if getattr(self.browser_manager, "session_changed", False):
+            await self.browser_manager.save_storage()
+            self.browser_manager.session_changed = False
+
 
     async def _action_goto(self, paso):
         url = paso.get("value")

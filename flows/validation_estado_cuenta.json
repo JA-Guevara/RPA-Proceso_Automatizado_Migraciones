@@ -3,8 +3,10 @@
 
   "validation": [
     { "action": "wait", "wait_time": 1},
-  { "action": "extraer_validar_estado","target": "validacion_estado_cuenta.estado_cuenta_field","offset_x": 50,"clicks": 1}
+    { "action": "extraer_validar_estado","target": "validacion_estado_cuenta.estado_cuenta_field","offset_x": 50,"clicks": 1},
+    { "action": "wait", "wait_time": 1}
   ],
+  
 
   "validation2": [
   { "action": "extraer_y_validar_imagen","target": "validacion_estado_cuenta.cambio_cuenta_icon","offset_y": 50,"clicks": 1 }

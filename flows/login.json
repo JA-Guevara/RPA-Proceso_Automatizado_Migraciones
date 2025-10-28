@@ -2,7 +2,7 @@
   "meta": {"name": "login","retries": 1},
 
   "flow": [
-    { "action": "abrir_rdp","host":"$terminal_ruta","wait_time": 5 },
+    { "action": "abrir_rdp","host":"$terminal_ruta","wait_time": 10 },
     { "action": "click_escribir", "target": "login.user_field", "value": "$terminal_user", "offset_x": 50,"clicks": 1,"transitorio": true},
     { "action": "click_escribir", "target": "login.password_field", "value": "$terminal_password", "offset_x": 50,"clicks": 1,"transitorio": true},
     { "action": "click_escribir", "target": "login.log_field", "value": "$terminal_log", "offset_x": 50,"clicks": 2,"transitorio": true},

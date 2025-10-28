@@ -1,0 +1,37 @@
+{
+  "meta": {"name": "saldo_core_balance","retries": 1},
+
+  "validation": [
+    { "action": "wait", "wait_time": 1},
+    { "action": "click", "target": "saldo_core_balance.informacion_swich_icon","clicks": 1},
+    { "action": "click", "target": "saldo_core_balance.tipo_cosulta_field","clicks": 1 },
+    { "action": "click", "target": "saldo_core_balance.casilla_prepago_option","clicks": 1},
+    { "action": "click", "target": "saldo_core_balance.aceptar_button","clicks": 1},
+    { "action": "wait", "wait_time": 2},
+    {
+      "action": "buscar_y_seleccionar",
+      "target": {
+        "referencia": "saldo_core_balance.refrescar_datos_icon",
+        "imagenes": [
+          "saldo_core_balance.successfull_message"
+        ],
+        "key_contexto": "billetera_successful",
+        "transitorio": true
+      },
+      "clicks_referencia": 3,
+      "clicks_imagen": 1,
+      "max_intentos": 5
+    }
+  ],
+
+  "flow": [
+    { "action": "click", "target": "saldo_core_balance.respuesta_datos_icon","clicks": 1 },
+    { "action": "extraer_y_validar_billetera","target": "saldo_core_balance.inicio_billetera_text", "campo_destino": "billetera_prepago_rpa","clicks": 2 },
+    { "action": "click", "target": "saldo_core_balance.cancelar_button","clicks": 1},
+    { "action": "click", "target": "saldo_core_balance.salir_button","clicks": 1 }
+
+  ],
+  "reboot_validation": [
+    { "action": "press_key", "target": "esc", "repeticiones": 5}
+  ]
+}

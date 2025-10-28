@@ -1,0 +1,36 @@
+{
+  "meta": {"name": "validation_estado_cuenta","retries": 1},
+
+  "validation": [
+    { "action": "wait", "wait_time": 1},
+  { "action": "extraer_validar_estado","target": "validacion_estado_cuenta.estado_cuenta_field","offset_x": 50,"clicks": 1}
+  ],
+
+  "validation2": [
+  { "action": "extraer_y_validar_imagen","target": "validacion_estado_cuenta.cambio_cuenta_icon","offset_y": 50,"clicks": 1 }
+  ],
+
+  "flow_distinto_AC": [
+
+  { "action": "click", "target": "validacion_estado_cuenta.cambio_cuenta_icon","clicks": 1},
+  { "action": "click", "target": "validacion_estado_cuenta.nuevo_estado_field", "offset_x": 60,"clicks": 2 },
+  { "action": "click_y_escribir", "target": "validacion_estado_cuenta.estado_posterior_field", "value": "AC","clicks": 1},
+  { "action": "click", "target": "validacion_estado_cuenta.posicion_button","clicks": 1},
+
+  { "action": "click", "target": "validacion_estado_cuenta.selecionar_button","clicks": 1},
+  { "action": "click", "target": "validacion_estado_cuenta.procesar_button","clicks": 1}
+
+  ],
+
+  "flow_pre-eliminacion": [
+  { "action": "click", "target": "validacion_estado_cuenta.modificacion_button","clicks": 1},
+  { "action": "click", "target": "validacion_estado_cuenta.cuenta_button","clicks": 1 },
+  { "action": "click", "target": "validacion_estado_cuenta.pre-eliminacion_button","clicks": 1},
+  { "action": "click", "target": "validacion_estado_cuenta.levantar_pre-eliminado_button","clicks": 1},
+  { "action": "click","target": "validacion_estado_cuenta.procesar_button2","clicks": 1}
+
+  ],
+  "reboot_validation": [
+    { "action": "press_key", "target": "esc"}
+  ]
+}

@@ -1,0 +1,10 @@
+__pycache__/
+venv/
+env/
+.env
+test_runner.py
+storage/
+registros_prueba.json
+storage/logs/server.log
+*.log
+assets/images_debug/

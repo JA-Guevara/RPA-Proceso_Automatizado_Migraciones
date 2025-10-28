@@ -1,0 +1,37 @@
+{
+  "meta": {"name": "paso_post_a_pre","retries": 1},
+
+  "validation": [
+    { "action": "wait", "wait_time": 1},
+    { "action": "click", "target": "paso_post_a_pre.procesos_button","clicks": 2 },
+    { "action": "click", "target": "paso_post_a_pre.paso_cuenta_option","clicks": 2 },
+    { "action": "extraer_validar_error","target": "liberacion_cuenta.image_error","offset_y": 50,"clicks": 1 }
+
+  ],
+
+  "flow_post_a_pre": [
+    { "action": "wait", "wait_time": 1},
+    { "action": "press_key", "target":"tab" },
+    { "action": "click_y_escribir", "target": "paso_post_a_pre.plan_comercial_field", "value": "64","offset_x":70, "clicks": 1},
+    { "action": "click_y_escribir", "target": "paso_post_a_pre.plan_consumo_field", "value": "$codigo_plan_consumo_asignados_rpa","offset_x": 70, "clicks": 1},
+    { "action": "click", "target": "paso_post_a_pre.codigo_motivo_field","clicks": 2 ,"offset_x": 70},
+    { "action": "click", "target": "paso_post_a_pre.descripcion_column","clicks": 3 },
+    { "action": "click", "target": "paso_post_a_pre.migracion_option","clicks": 1 },
+    { "action": "click", "target": "paso_post_a_pre.seleccionar_button","clicks": 1,"transitorio": true},
+    { "action": "click", "target": "paso_post_a_pre.migracion_postpago_option","clicks": 1 }, 
+    { "action": "click", "target": "paso_post_a_pre.seleccionar_button","clicks": 1,"transitorio": true},
+    { "action": "click", "target": "paso_post_a_pre.procesar_button","clicks": 1 },
+    { "action": "wait", "wait_time": 12}
+
+  ],
+    "flow_desbloqueo": [
+    { "action": "click", "target": "liberacion_cuenta.procesos_button","clicks": 1 },
+    { "action": "click", "target": "liberacion_cuenta.liberar_cuenta_option","clicks": 1 },
+    { "action": "click", "target": "liberacion_cuenta.aceptar_button","clicks": 1 },
+    { "action": "click", "target": "liberacion_cuenta.ok_button","clicks": 1 },
+    { "action": "wait", "wait_time": 1}
+  ],
+  "reboot_validation": [
+    { "action": "press_key", "target": "esc", "repeticiones": 5 }
+  ]
+}

@@ -1,0 +1,24 @@
+{
+  "meta": {"name": "validation_idctl_actual","retries": 1},
+
+  "validation": [
+    { "action": "wait", "wait_time": 1},
+    { "action": "extraer_texto_con_destino","target": "validacion_idctl_actual.forma_pago_field", "campo_destino": "idctl_actual_rpa","offset_x": 70,"ancho": 85,"alto": 22 }
+  ],
+  
+  "flow_plan_programado": [
+    { "action": "click", "target": "validacion_idctl_actual.plan_consumo_button","clicks": 1},
+    { "action": "click", "target": "validacion_idctl_actual.cambio_plan_button","clicks": 1},
+    { "action": "extraer_y_validar_successful","target": "validacion_idctl_actual.estado_field","clicks": 1 },
+    { "action": "click", "target": "validacion_idctl_actual.cambio_plan_button","clicks": 1,"transitorio": true},
+    { "action": "click", "target": "validacion_idctl_actual.cambio_plan_button","clicks": 1,"transitorio": true}
+  ],
+   "flow_cambio_plan": [
+    { "action": "click", "target": "validacion_idctl_actual.cambio_plan_icon","clicks": 1},
+    { "action": "click", "target": "validacion_idctl_actual.eliminar_plan_button","clicks": 1}
+  ],
+
+  "reboot_validation": [
+    { "action": "press_key", "target": "esc"}
+  ]
+}

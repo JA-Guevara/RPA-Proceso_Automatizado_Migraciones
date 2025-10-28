@@ -1,0 +1,36 @@
+{
+  "meta": {"name": "programar_cambio","retries": 1},
+
+  "validation": [
+    { "action": "wait", "wait_time": 1},
+    { "action": "click", "target": "programar_cambio.modificaciones_button","clicks": 1 },
+    { "action": "click", "target": "programar_cambio.cuenta_option","clicks": 1 },
+    { "action": "click", "target": "programar_cambio.plan_comercial_option","clicks": 1 },
+    { "action": "extraer_validar_error","target": "liberacion_cuenta.image_error","offset_y": 50,"clicks": 1 }
+  ],
+
+  "flow": [
+    { "action": "click_y_escribir", "target": "programar_cambio.plan_comercial_field", "value": "79","offset_x":70, "clicks": 1},
+    { "action": "press_key", "target": "tab" },
+    { "action": "click", "target": "programar_cambio.procesar_button","clicks": 1,"transitorio": true },
+    { "action": "wait", "wait_time": 1},
+    { "action": "click_y_escribir", "target": "programar_cambio.plan_consumo_field", "value": "2400","offset_x": 70, "clicks": 1},
+    { "action": "click", "target": "programar_cambio.tipos_plan_lista","clicks": 1 ,"offset_x": 70},
+    { "action": "click", "target": "programar_cambio.inmediato_option","clicks": 1 },
+    { "action": "click", "target": "programar_cambio.procesar_button","clicks": 1,"transitorio": true },
+    { "action": "click", "target": "programar_cambio.inmediato_option","clicks": 1 },
+    { "action": "click", "target": "programar_cambio.si_button","clicks": 1 }
+  ],
+
+    "flow_desbloqueo": [
+    { "action": "click", "target": "liberacion_cuenta.procesos_button","clicks": 1 },
+    { "action": "click", "target": "liberacion_cuenta.liberar_cuenta_option","clicks": 1 },
+    { "action": "click", "target": "liberacion_cuenta.aceptar_button","clicks": 1 },
+    { "action": "click", "target": "liberacion_cuenta.ok_button","clicks": 1 }
+  ],
+
+  "reboot_validation": [
+    { "action": "press_key", "target": "esc", "repeticiones": 5 }
+  ]
+
+}

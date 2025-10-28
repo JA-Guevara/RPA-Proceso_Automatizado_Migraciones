@@ -1,0 +1,43 @@
+{
+  "meta": {"name": "crear_servicio_fflte","retries": 1},
+
+  "validation_FFLTE": [
+    { "action": "wait", "wait_time": 1},
+    { "action": "press_key", "target": "tab" },
+    { "action": "click", "target": "varificar_crear_servicios.servicios_button","clicks": 1 },
+    { "action": "buscar_y_seleccionar_servicio", "target": {"referencia": "varificar_crear_servicios.servicio_column", "imagenes": ["varificar_crear_servicios.FFLTE_option_a","varificar_crear_servicios.FFLTE_option_b"],"key_contexto": "existe_FFLTE","transitorio": true},"clicks": 1,"max_intentos": 7}
+  ],
+
+  "validation_FFLTE_error": [
+    { "action": "click", "target": "varificar_crear_servicios.edicion_servicios_icon","clicks": 1 },
+    { "action": "extraer_validar_error","target": "liberacion_cuenta.image_error","offset_y": 50,"clicks": 1 }
+  ],
+
+  "flow_FFLTE": [
+    { "action": "wait", "wait_time": 1 }, 
+    { "action": "buscar_y_seleccionar_servicio", "target": {"referencia": "varificar_crear_servicios.descripcion_column", "imagenes": ["varificar_crear_servicios.alcance_llamada_option_a","varificar_crear_servicios.alcance_llamada_option_b"],"key_contexto": "existe_alcanse_llamadas","transitorio": true},"clicks": 1,"max_intentos": 5},
+    { "action": "click", "target": "varificar_crear_servicios.cod_column","clicks": 1 },
+
+    { "action": "buscar_y_seleccionar_servicio", "target": {"referencia": "varificar_crear_servicios.descripcion_column", "imagenes": ["varificar_crear_servicios.factura_fija_option_a","varificar_crear_servicios.factura_fija_option_b"],"key_contexto": "existe_factura_fija","transitorio": true},"clicks_referencia": 1,  "clicks_imagen": 2,"max_intentos": 7},
+
+    { "action": "click", "target": "varificar_crear_servicios.procesar_button","clicks": 1 },
+    { "action": "click", "target": "varificar_crear_servicios.salir_button","clicks": 1 }
+
+  ],
+
+  "flow_desbloqueo": [
+    { "action": "click", "target": "liberacion_cuenta.procesos_button","clicks": 1 },
+    { "action": "click", "target": "liberacion_cuenta.liberar_cuenta_option","clicks": 1 },
+    { "action": "click", "target": "liberacion_cuenta.aceptar_button","clicks": 1 },
+    { "action": "click", "target": "liberacion_cuenta.ok_button","clicks": 1 }
+
+  ],
+
+  "reboot_validation_FFLTE": [
+    { "action": "press_key", "target": "esc", "repeticiones": 5 }
+  ],
+
+    "reboot_validation_FFLTE_error": [
+    { "action": "press_key", "target": "esc", "repeticiones": 5 }
+  ]
+}

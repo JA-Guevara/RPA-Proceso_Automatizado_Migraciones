@@ -1,0 +1,29 @@
+{
+  "meta": {"name": "eliminacion_servicios","retries": 1},
+
+  "validation": [
+  { "action": "wait", "wait_time": 1},
+  { "action": "click", "target": "eliminacion_servicios.servicios_button","clicks": 1},
+  { "action": "wait", "wait_time": 1},
+  { "action": "buscar_y_seleccionar_servicio", "target": {"referencia": "eliminacion_servicios.servicio_column", "imagenes": ["eliminacion_servicios.restringir_nav_option_a","eliminacion_servicios.restringir_nav_option_b"],"key_contexto": "existeRestringirNav","transitorio": true},"clicks": 1,"max_intentos": 2}
+  ],
+
+  "flow_eliminacion": [
+  { "action": "click", "target": "eliminacion_servicios.edicion_servicios_icon","clicks": 1},
+  { "action": "click", "target": "eliminacion_servicios.descripcion_servicio_column","clicks": 2},
+  { "action": "buscar_y_seleccionar_servicio", "target": {"referencia": "eliminacion_servicios.servicio_column", "imagenes": ["eliminacion_servicios.restringir_nav_option_a2","eliminacion_servicios.restringir_nav_option_b2"],"key_contexto": "existeRestringirNav2","transitorio": true},"clicks": 1,"max_intentos": 2},
+  { "action": "wait", "wait_time": 1},
+  { "action": "click", "target": "eliminacion_servicios.eliminar_servicio_icon","clicks": 1},
+  { "action": "click", "target": "eliminacion_servicios.suprimir_button","clicks": 1},
+    { "action": "wait", "wait_time": 1},
+  { "action": "click", "target": "eliminacion_servicios.yes_button","clicks": 1},
+    { "action": "wait", "wait_time": 1},
+  { "action": "click", "target": "eliminacion_servicios.procesar_button","clicks": 1},
+    { "action": "wait", "wait_time": 2},
+  { "action": "click", "target": "eliminacion_servicios.salir_button","clicks": 1}
+  ],
+
+  "reboot_validation": [
+    { "action": "press_key", "target": "esc", "repeticiones": 5 }
+  ]
+}

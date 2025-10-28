@@ -1,0 +1,16 @@
+{
+  "meta": {"name": "captura_datos","retries": 1},
+
+  "flow": [
+    { "action": "wait", "wait_time": 1},
+    { "action": "extract_fecha_y_antiguedad", "target": "captura_datos.fecha_habil_field",  "campo_fecha": "fecha_habil","campo_antiguedad": "antiguedad", "offset_x": 70,"clicks": 1 },
+    { "action": "click", "target": "captura_datos.cuenta_button","clicks": 1},
+    { "action": "extract_y_asignar", "target": "captura_datos.ident_individual_field",  "campo_destino": "ident_individual","offset_x": 85,"clicks": 1 },
+    { "action": "extract_y_asignar", "target": "captura_datos.tipo_cuenta_field",  "campo_destino": "tipo_cuenta","offset_x": 85,"clicks": 1 },
+    { "action": "extract_y_asignar", "target": "captura_datos.producto_field",  "campo_destino": "producto","offset_x": 85,"clicks": 1 },
+    { "action": "click", "target": "captura_datos.salir_button","clicks": 1}
+  ],
+  "reboot_captura_datos": [
+    { "action": "press_key", "target": "esc", "repeticiones": 5 }
+  ]
+}

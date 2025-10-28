@@ -1,0 +1,31 @@
+{
+  "meta": {"name": "login","retries": 1},
+
+  "flow": [
+    { "action": "abrir_rdp","host":"$terminal_ruta","wait_time": 5 },
+    { "action": "click_escribir", "target": "login.user_field", "value": "$terminal_user", "offset_x": 50,"clicks": 1,"transitorio": true},
+    { "action": "click_escribir", "target": "login.password_field", "value": "$terminal_password", "offset_x": 50,"clicks": 1,"transitorio": true},
+    { "action": "click_escribir", "target": "login.log_field", "value": "$terminal_log", "offset_x": 50,"clicks": 2,"transitorio": true},
+    { "action": "click", "target": "login.ok_button","clicks": 1,"transitorio": true},
+    { "action": "wait", "wait_time": 5 },
+    { "action": "press_key", "target": "tab" },
+    { "action": "click", "target": "login.BCCS_icons","clicks": 2,"transitorio": true},
+    { "action": "wait", "wait_time": 2 },
+    { "action": "click_y_escribir", "target": "login.user_BCCS_field", "value": "$bccs_user", "offset_x": 80,"clicks": 1,"transitorio": true},
+    { "action": "click_y_escribir", "target": "login.password_BCCS_field", "value": "$bccs_password", "offset_x": 80,"clicks": 1,"transitorio": true},
+    { "action": "click", "target": "login.ok_BCCS_button","clicks": 1,"transitorio": true},
+    { "action": "wait", "wait_time": 2 },
+    { "action": "click", "target": "login.modulos_BCCS", "offset_x": -80,"clicks": 1,"transitorio": true},
+    { "action": "wait", "wait_time": 1 },
+    { "action": "click", "target": "login.telefonia_icons","clicks": 2,"transitorio": true},
+    { "action": "wait", "wait_time": 3 },
+    { "action": "click_y_escribir", "target": "login.user_BCCS_field", "value": "$bccs_user", "offset_x": 80,"clicks": 1,"transitorio": true},
+    { "action": "click_y_escribir", "target": "login.password_BCCS_field", "value": "$bccs_password", "offset_x": 80,"clicks": 1,"transitorio": true},
+    { "action": "click", "target": "login.ok_BCCS_button","clicks": 1,"transitorio": true},
+    { "action": "wait", "wait_time": 2 },
+    { "action": "click", "target": "login.busqueda_button","clicks": 1}
+  ],
+  "reboot_login": [
+
+  ]
+}

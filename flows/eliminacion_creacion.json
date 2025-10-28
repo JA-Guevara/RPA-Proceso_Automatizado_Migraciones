@@ -1,0 +1,16 @@
+{
+  "meta": {"name": "eliminacion_creacion","retries": 1},
+
+  "flow": [
+    { "action": "wait", "wait_time": 1},
+    { "action": "click", "target": "eliminacion_creacion.procesos_manuales_icon","clicks": 1},
+    { "action": "click", "target": "eliminacion_creacion.eliminacion_creacion_option","clicks": 1},
+    { "action": "click", "target": "eliminacion_creacion.procesar_button","clicks": 1},
+    { "action": "wait", "wait_time": 15 }, 
+    { "action": "click", "target": "eliminacion_creacion.ok_button","clicks": 1}
+  ],
+
+  "reboot_eliminacion_creacion": [
+    { "action": "press_key", "target": "esc", "repeticiones": 5 }
+  ]
+}

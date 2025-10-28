@@ -1,0 +1,14 @@
+{
+  "meta": {"name": "validation_consumo","retries": 1},
+
+  "validation": [
+  { "action": "wait", "wait_time": 1},
+  { "action": "click", "target": "validacion_consumo.consumo_button","clicks": 1},
+  { "action": "extraer_validar_consumo","target": "validacion_consumo.estado_contable","clicks": 1}
+  ],
+  "flow": [
+  ],
+  "reboot_validation": [
+    { "action": "press_key", "target": "esc"}
+  ]
+}

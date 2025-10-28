@@ -1,0 +1,28 @@
+{
+  "meta": {"name": "validacion_estado_controlado","retries": 1},
+
+  "validation": [
+    { "action": "wait", "wait_time": 1},
+    { "action": "extraer_texto_con_destino","target": "validacion_estado_controlado.situacion_field", "campo_destino": "situacion","offset_x": 72,"ancho": 44,"alto": 21, "palabras_validas": ["Propio", "Controlado"]}
+  ],
+
+  "flow - validacionCNS": [
+    { "action": "wait", "wait_time": 1},
+    { "action": "click", "target": "validacion_estado_controlado.ventas_button","clicks": 1},
+    { "action": "extraer_validar_controlado","target": "validacion_estado_controlado.fecha_comercial_button","clicks": 1}
+  ],
+
+  "flow - cambioPropio": [
+    { "action": "click", "target": "validacion_estado_controlado.cambio_equipo_icon","clicks": 1},
+    { "action": "click", "target": "validacion_estado_controlado.sin_Cpte_button","clicks": 1},
+    { "action": "click", "target": "validacion_estado_controlado.propios_option","clicks": 1},
+    { "action": "click_y_escribir", "target": "validacion_estado_controlado.producto_field_in", "value": "$producto","clicks": 1},
+    { "action": "click_y_escribir", "target": "validacion_estado_controlado.ident_induvidual_field_in", "value": "$ident_individual","clicks": 1},
+    { "action": "click_y_escribir", "target": "validacion_estado_controlado.subtipo_cuenta_field_in", "value": "$tipo_cuenta","clicks": 1},
+    { "action": "click", "target": "validacion_estado_controlado.procesar_button","clicks": 1}
+  ],
+
+  "reboot_validation": [
+    { "action": "press_key", "target": "esc"}
+  ]
+}

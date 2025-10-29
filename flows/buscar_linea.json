@@ -3,13 +3,14 @@
 
   "flow": [
     { "action": "wait", "wait_time": 1},
-    { "action": "existe_imagen_error","target": "login.busqueda_button","clicks": 1 },
+    { "action": "existe_imagen_error","target": "login.busqueda_button","clicks": 1 ,"transitorio": true},
     { "action": "click_y_escribir", "target": "buscar_linea.nro_linea_field", "value": "$nro_linea", "offset_x": 80,"clicks": 1},
     { "action": "click", "target": "buscar_linea.procesar_button","clicks": 1},
     { "action": "wait", "wait_time": 1}
   ],
   "salir_buscar_linea": [
     { "action": "wait", "wait_time": 1},
-    { "action": "click", "target": "buscar_linea.salir_BCCS_button","clicks": 1,"transitorio": true}
+    { "action": "click", "target": "buscar_linea.salir_BCCS_button","clicks": 1,"transitorio": true},
+    { "action": "wait", "wait_time": 1}
   ]
 }

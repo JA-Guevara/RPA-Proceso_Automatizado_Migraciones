@@ -23,7 +23,7 @@
     { "action": "click_y_escribir", "target": "login.password_BCCS_field", "value": "$bccs_password", "offset_x": 80,"clicks": 1,"transitorio": true},
     { "action": "click", "target": "login.ok_BCCS_button","clicks": 1,"transitorio": true},
     { "action": "wait", "wait_time": 2 },
-    { "action": "click", "target": "login.busqueda_button","clicks": 1}
+    { "action": "click", "target": "login.busqueda_button","clicks": 1,"transitorio": true}
   ],
   "reboot_login": [
 

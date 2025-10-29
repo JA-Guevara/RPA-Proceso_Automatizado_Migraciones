@@ -345,6 +345,6 @@ class DesktopExecutor:
             usar_imagen=paso.get("usar_imagen", True),
             raise_error=paso.get("raise_error", True),
             transitorio=paso.get("transitorio", False),
-            timeout=int(paso.get("timeout", 5))
+            timeout=int(paso.get("timeout", 2))
         )
 

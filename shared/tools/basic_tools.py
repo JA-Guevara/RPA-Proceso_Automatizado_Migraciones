@@ -53,6 +53,7 @@ class BasicTools:
         try:
             pyperclip.copy(texto)
             logger.info(f"📋 Texto copiado al portapapeles: '{texto[:60]}...'")
+            self.app_tools.presionar_combinacion("ctrl", "a")
             return self.pegar_texto_actual(delay)
         except Exception as e:
             logger.error(f"❌ Error al escribir desde clipboard: {e}", exc_info=True)

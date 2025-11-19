@@ -165,12 +165,14 @@ class ClickTools:
 
     def buscar_imagen(self, target: str, nombre_logico: Optional[str] = None,
                   usar_inicio: bool = False, raise_error: bool = True,
-                  timeout: float = None, retry_delay: float = 0.2, transitorio: bool = False
+                  timeout: float = None, retry_delay: float = 0.2,
+                  transitorio: bool = False, confidence: Optional[float] = None
                  ) -> Optional[Tuple[int, int, int, int]]:
         try:
             nombre_logico = nombre_logico or target
             imagen_path = target
             timeout = timeout if timeout is not None else self.timeout
+            confianza = confidence if confidence is not None else self.confidence  # ✅ clave
             start_time = time.time()
 
             while time.time() - start_time < timeout:
@@ -179,9 +181,9 @@ class ClickTools:
 
                     if region:
                         region_box = (region['x'], region['y'], region['width'], region['height'])
-                        posicion = pyautogui.locateOnScreen(imagen_path, confidence=self.confidence, region=region_box)
+                        posicion = pyautogui.locateOnScreen(imagen_path, confidence=confianza, region=region_box)
                     else:
-                        posicion = pyautogui.locateOnScreen(imagen_path, confidence=self.confidence)
+                        posicion = pyautogui.locateOnScreen(imagen_path, confidence=confianza)
 
                     if posicion:
                         if not transitorio:

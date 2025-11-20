@@ -3,12 +3,14 @@ import pyperclip
 import pytesseract
 import unicodedata
 import logging
+import datetime
 import os
 import re
 import cv2
 import time
 import numpy as np
 from typing import Optional, Tuple
+from dateutil.parser import parse
 import difflib
 from typing import Optional, List
 from shared.tools.app_tools import AppTools
@@ -170,12 +172,14 @@ class ExtractionTools:
 
 
     def extraer_fecha_y_antiguedad(self, imagen: str, contexto: dict,
-                               offset_x: int = 0, offset_y: int = 0,
-                               clicks: int = 2, nombre_logico: str = None,
-                               campo_fecha: str = None, campo_antiguedad: str = None,
-                               transitorio: bool = False) -> None:
+                                offset_x: int = 0, offset_y: int = 0,
+                                clicks: int = 2, nombre_logico: str = None,
+                                campo_fecha: str = None, campo_antiguedad: str = None,
+                                transitorio: bool = False):
+
         try:
-            exito_clic = self.clicker.hacer_clic(
+            # --- clic y lectura ---
+            self.clicker.hacer_clic(
                 target=imagen,
                 clicks=clicks,
                 offset_x=offset_x,
@@ -185,26 +189,37 @@ class ExtractionTools:
             )
 
             texto = self.basic_tools.copiar_texto_actual().strip()
-            texto = texto.replace("...", "").strip()  # limpia artefactos comunes del OCR
+            texto = texto.replace("...", "").replace("\n", "").strip()
+
+            # --- VALIDAR SOLO QUE SEA FECHA EN CUALQUIER FORMATO ---
+            try:
+                fecha_valida = parse(texto, dayfirst=False, yearfirst=False)
+            except:
+                contexto["existe_error_captura"] = True
+                logger.warning(f"⚠️ Texto extraído NO es una fecha: '{texto}'")
+                return False
+
+            # ✔ si es fecha → normalizar a YYYY-MM-DD
+            fecha_str = fecha_valida.strftime("%Y-%m-%d")
+            contexto["existe_error_captura"] = False
 
             if campo_fecha:
-                contexto[campo_fecha] = texto
-                logger.info(f"📅 Fecha extraída y guardada en '{campo_fecha}': {texto}")
+                contexto[campo_fecha] = fecha_str
+                logger.info(f"📅 Fecha válida extraída: {fecha_str}")
 
+            # --- Calcular antigüedad ---
             if campo_antiguedad:
-                resultado = self.basic_tools.calcular_antiguedad(texto)
-                if resultado is not None:
-                    anios, meses, dias = resultado
+                anios, meses, dias = self.basic_tools.calcular_antiguedad(fecha_str)
+                contexto[f"{campo_antiguedad}_meses_rpa"] = meses
+                contexto["codigo_plan_consumo_asignados_rpa"] = 186 if meses > 6 else 184
+                logger.info(f"📆 Antigüedad: {anios} años, {meses} meses, {dias} días")
 
-                    contexto[f"{campo_antiguedad}_meses_rpa"] = meses
-                    contexto["codigo_plan_consumo_asignados_rpa"] = 186 if meses > 6 else 184
-
-                    logger.info(f"📆 Antigüedad guardada en '{campo_antiguedad}': {anios} años, {meses} meses, {dias} días")
-                else:
-                    logger.warning(f"⚠️ No se pudo calcular antigüedad desde texto: '{texto}'")
+            return True
 
         except Exception as e:
-            logger.error(f"❌ Error en extraer_fecha_y_antiguedad desde '{imagen}': {e}", exc_info=True)
+            logger.error(f"❌ Error en extraer_fecha_y_antiguedad: {e}", exc_info=True)
+            contexto["existe_error_captura"] = True
+            return False
 
     def extraer_validar_error(
     self,ruta_imagen: str,nombre_logico: str,contexto: dict, offset_x: int = 0, offset_y: int = 0, clicks: int = 1, usar_imagen: bool = True, raise_error: bool = True, transitorio: bool = False, timeout: int = 2) -> bool:

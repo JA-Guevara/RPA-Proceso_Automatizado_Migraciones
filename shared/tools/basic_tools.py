@@ -105,26 +105,26 @@ class BasicTools:
             gc.collect()
             return False
 
-    def calcular_antiguedad(self, fecha_str: str, formato: str = "%m/%d/%Y") -> Optional[Tuple[int, int, int]]:
+    def calcular_antiguedad(self, fecha_str: str) -> Optional[Tuple[int, int, int]]:
         try:
-            fecha = datetime.strptime(fecha_str.strip().replace("...", ""), formato)
+            # Nuestro extractor ya entrega YYYY-MM-DD
+            fecha = datetime.strptime(fecha_str, "%Y-%m-%d")
             hoy = datetime.now()
 
             if fecha > hoy:
                 logger.warning(f"⚠️ La fecha '{fecha_str}' es futura. Se devuelve 0.")
                 return 0, 0, 0
 
-            # Diferencia total en días
-            total_dias = (hoy - fecha).days
+            delta = hoy - fecha
+            total_dias = delta.days
 
-            # Cálculos coherentes
-            # 1 año = 365.25 días promedio (cuenta años bisiestos)
-            anios = int(total_dias // 365.25)
-            meses = int(total_dias // 30.44)  # promedio mensual realista
+            # Años / meses aproximados
+            anios = total_dias // 365
+            meses = total_dias // 30
             dias = total_dias
 
             return anios, meses, dias
 
         except Exception as e:
-            logger.error(f"❌ Error al calcular antigüedad de '{fecha_str}' con formato '{formato}': {e}", exc_info=True)
+            logger.error(f"❌ Error al calcular antigüedad: {e}", exc_info=True)
             return None

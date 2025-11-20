@@ -3,6 +3,7 @@
 
   "flow": [
     { "action": "wait", "wait_time": 1},
+    { "action": "press_key", "target": "tab", "repeticiones": 1 },
     { "action": "extract_fecha_y_antiguedad", "target": "captura_datos.fecha_habil_field",  "campo_fecha": "fecha_habil","campo_antiguedad": "antiguedad", "offset_x": 70,"clicks": 1 },
     { "action": "click", "target": "captura_datos.cuenta_button","clicks": 1},
     { "action": "extract_y_asignar", "target": "captura_datos.ident_individual_field",  "campo_destino": "ident_individual","offset_x": 85,"clicks": 1 },

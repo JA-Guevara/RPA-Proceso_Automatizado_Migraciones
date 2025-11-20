@@ -298,24 +298,24 @@ class DesktopExecutor:
     def _action_buscar_y_seleccionar(self, paso):
         target = paso.get("target", {})
 
-        referencia = target.get("referencia")           
-        imagenes = target.get("imagenes", [])         
-        
+        referencia = target.get("referencia")
+        imagenes = target.get("imagenes", [])
+
         self.service_tools.buscar_y_seleccionar(
             referencia=referencia,
             imagenes=imagenes,
             contexto=self.contexto,
             key_contexto=target.get("key_contexto", "resultado_busqueda"),
             clicks_ref=paso.get("clicks_referencia", paso.get("clicks", 1)),
-            clicks_img=paso.get("clicks_imagen", paso.get("clicks", 1)),
             offset_x=paso.get("offset_x", 0),
             offset_y=paso.get("offset_y", 0),
             usar_imagen=paso.get("usar_imagen", True),
             raise_error=paso.get("raise_error", True),
             transitorio=target.get("transitorio", False),
-            max_intentos=paso.get("max_intentos", 4)
+            timeout=paso.get("timeout", 2),           
+            max_intentos=paso.get("max_intentos", 1)
         )
-        
+
     def _action_extraer_validar_error(self, paso: dict):
 
         ruta, nombre = self._resolver_imagen(paso.get("target"))

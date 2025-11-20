@@ -18,11 +18,14 @@ class ImagePaths:
         
         "telefonia_icons": ruta("login", "telefonia_icons.png"),
         "modulos_BCCS": ruta("login", "modulos_BCCS.png"),
+    
         "busqueda_button": ruta("login", "busqueda_button.png")
 
     }
 
     BUSCAR_LINEA = {
+        "inicial_busqueda": ruta("buscar_linea", "inicial_busqueda.png"),
+        "busqueda_button": ruta("buscar_linea", "busqueda_button.png"),
         "nro_linea_field": ruta("buscar_linea", "nro_cuenta_field.png"),
         "procesar_button": ruta("buscar_linea", "procesar_button.png"),
         "salir_BCCS_button": ruta("buscar_linea", "salir_BCCS_button.png")

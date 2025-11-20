@@ -92,78 +92,77 @@ class ServiceTools:
         
     def buscar_y_seleccionar(
     self,
-    referencia: Optional[str],   # Imagen de referencia base (click repetido)
-    imagenes: list,              # Lista de imágenes posibles a encontrar
+    referencia: Optional[str],        # Imagen donde se hará clic si se detecta algo
+    imagenes: list,                   # Lista de imágenes para detección
     contexto: dict,
     key_contexto: str,
     clicks_ref: int = 1,
-    clicks_img: int = 1,
     offset_x: int = 0,
     offset_y: int = 0,
     usar_imagen: bool = True,
     raise_error: bool = True,
     transitorio: bool = False,
-    max_intentos: int = 6
+    timeout: int = 2,                 # ⬅️ Timeout configurable
+    max_intentos: int = 1             # ⬅️ Cantidad de reintentos
 ) -> bool:
 
         try:
+            # 1️⃣ Validación de referencia
             if not referencia:
-                logger.error("⚠️ No se especificó imagen de referencia para buscar el servicio.")
+                logger.error("⚠️ No se especificó imagen de referencia.")
                 contexto[key_contexto] = False
                 return False
 
             ruta_ref, nombre_ref = self.executor._resolver_imagen(referencia)
-            logger.info(f"🎯 Referencia base: {nombre_ref}")
+            logger.info(f"🎯 Referencia base para clic: {nombre_ref}")
 
+            # 2️⃣ Intentos para encontrar alguna imagen objetivo
             for intento in range(1, max_intentos + 1):
-                logger.info(f"🔁 Intento {intento}/{max_intentos}: clic en referencia '{nombre_ref}'...")
-                
-                self.app_tools.presionar_tecla_real("tab",repeticiones=2)
-                click_ok = self.clicker.hacer_clic(
-                    target=ruta_ref,
-                    offset_x=offset_x,
-                    offset_y=offset_y,
-                    clicks=clicks_ref,
-                    nombre_logico=nombre_ref,
-                    usar_imagen=usar_imagen,
-                    raise_error=raise_error,
-                    transitorio=False
-                )
-                if not click_ok:
-                    logger.warning(f"⚠️ No se pudo hacer clic en referencia '{nombre_ref}'.")
-                    continue
+                logger.info(f"🔍 Intento {intento}/{max_intentos}: buscando imágenes objetivo...")
 
+                # Recorrer cada imagen posible
                 for img in imagenes:
                     ruta_img, nombre_img = self.executor._resolver_imagen(img)
 
+                    # Verificación de presencia
                     if self.extractor.imagen_esta_presente(
-                        ruta_img, nombre_img, timeout=2, transitorio=transitorio
+                        ruta_img,
+                        nombre_img,
+                        timeout=timeout,
+                        transitorio=transitorio
                     ):
                         logger.info(f"✅ Imagen detectada: {nombre_img}")
-                        self.clicker.hacer_clic(
-                            target=ruta_img,
+
+                        # 3️⃣ CLIC ÚNICAMENTE EN LA REFERENCIA
+                        click_ok = self.clicker.hacer_clic(
+                            target=ruta_ref,
                             offset_x=offset_x,
                             offset_y=offset_y,
-                            clicks=clicks_img,
-                            nombre_logico=nombre_img,
+                            clicks=clicks_ref,
+                            nombre_logico=nombre_ref,
                             usar_imagen=usar_imagen,
                             raise_error=raise_error,
                             transitorio=transitorio
                         )
+
+                        if not click_ok:
+                            logger.warning(f"⚠️ No se pudo hacer clic en referencia '{nombre_ref}'.")
+                            contexto[key_contexto] = False
+                            return False
+
                         contexto[key_contexto] = True
                         return True
 
-                # 4️⃣ Si ninguna imagen fue encontrada, esperar y volver a intentar
-                logger.info(f"🔄 Imagen no encontrada. Repitiendo clic sobre referencia...")
+                # ➜ Si no se encontró ninguna imagen, esperar antes del siguiente intento
+                logger.info("🔄 No se detectó imagen. Reintentando...")
                 self.app_tools.esperar(0.8)
 
-            # 5️⃣ Si tras todos los intentos no aparece
+            # 4️⃣ Si no se encontró nada tras todos los intentos
             logger.warning(f"❌ No se detectó ninguna imagen válida tras {max_intentos} intentos.")
             contexto[key_contexto] = False
             return False
 
         except Exception as e:
-            logger.error(f"💥 Error en buscar_y_seleccionar_servicio: {e}", exc_info=True)
+            logger.error(f"💥 Error en buscar_y_seleccionar: {e}", exc_info=True)
             contexto[key_contexto] = False
             return False
-

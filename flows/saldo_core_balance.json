@@ -9,7 +9,7 @@
     { "action": "click", "target": "saldo_core_balance.aceptar_button","clicks": 1},
     { "action": "wait", "wait_time": 2},
     {
-      "action": "buscar_y_seleccionar",
+      "action": "buscar_y_seleccionar_billetera",
       "target": {
         "referencia": "saldo_core_balance.refrescar_datos_icon",
         "imagenes": [

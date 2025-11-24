@@ -9,41 +9,50 @@ class PasoPostAPreAction(ActionBase):
         self.hora_inicio()
 
         try:
-            # 🧩 Paso 1: Validación inicial
+            # 🧩 PASO 1: Validación inicial
             self.executor.ejecutar_bloque("validation")
 
-            # ✅ Caso 1: No hubo errores → ejecutar flujo principal
+            # ✅ CASO 1: Sin errores → continuar con el flujo normal
             if not self.contexto.get("existe_error", False):
                 self.executor.ejecutar_bloque("flow_post_a_pre")
                 return True
 
-            # ⚠️ Caso 2: Hubo error → verificar tipo
-            mensaje_error = self.contexto.get("mensaje_error", "")
+            mensaje_error = self.contexto.get("mensaje_error", "").upper()
             self.contexto["existe_error"] = True
+            id_sharepoint = self.contexto.get("id_sharepoint")
 
-            if "CUENTA ESTA BLOQUEADA" in mensaje_error.upper():
-                # 🔐 Manejo especial de bloqueo
+            if "CUENTA ESTA BLOQUEADA" in mensaje_error:
                 self.logger.info("🔐 Cuenta bloqueada detectada. Ejecutando flujo de desbloqueo...")
+
                 self.executor.ejecutar_bloque("reboot_validation")
                 self.executor.ejecutar_bloque("flow_desbloqueo")
 
-                # Reintento después del desbloqueo
+                # Reintento tras desbloqueo
                 self.logger.info("🔄 Reintentando validación y flujo post a pre...")
                 self.executor.ejecutar_bloque("validation")
                 self.executor.ejecutar_bloque("flow_post_a_pre")
                 return True
 
-            else:
-                self.logger.info("📝 Error distinto a bloqueo. Reiniciando validación...")
+            if "EL MOTIVO DE REGISTRACION EN IDCTL ES INVALIDO PARA ESTE PROCESO" in mensaje_error:
+                self.logger.warning("⚠️ Motivo IDCTL inválido — cierre con reclamo.")
                 self.executor.ejecutar_bloque("reboot_validation")
 
-                id_sharepoint = self.contexto.get("id_sharepoint")
-                self.contexto["linea_migrada"] = True
-                self.contexto["mensaje_memo"] = f"Baja Realizada por otro Canal - ID solicitud: {id_sharepoint}"
-                self.contexto["baja_realizada"] = "Baja Realizada por Otro Canal"
-                self.registrar_observacion("La baja ya fue realizada por otro canal")
+                self.contexto["linea_migrada"] = False
+                self.contexto["mensaje_memo"] = f"Baja observada - ID solicitud: {id_sharepoint}"
+                self.contexto["baja_realizada"] = "Baja Observada"
+                self.registrar_observacion("La baja no se realizó — IDCTL está en COR")
 
-                return True
+                return False
+
+            # ❌ CUALQUIER OTRO ERROR → cierre con reclamo
+            self.logger.info("📝 Error distinto a bloqueo. Reiniciando validación...")
+            self.executor.ejecutar_bloque("reboot_validation")
+            self.contexto["linea_migrada"] = False
+            self.contexto["mensaje_memo"] = f"Baja observada - ID solicitud: {id_sharepoint}"
+            self.contexto["baja_realizada"] = "Baja Observada"
+            self.registrar_observacion(f"La baja no realizada — error: {mensaje_error}")
+
+            return False  # 👈 ERROR → debe cortar el proceso, NO continuar
 
         except Exception as e:
             self.manejar_excepcion(e)
@@ -51,8 +60,7 @@ class PasoPostAPreAction(ActionBase):
                 self.executor.ejecutar_bloque("reboot_validation")
             except Exception:
                 self.logger.warning("⚠️ Falló también reboot_validation", exc_info=True)
-
-            raise  
+            raise
 
         finally:
             self.hora_fin()

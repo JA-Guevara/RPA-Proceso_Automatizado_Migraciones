@@ -54,8 +54,12 @@ class MigracionActions:
     def ejecutar(self) -> bool:
         try:
             TimeTools.marcar_hora_inicio(self.contexto, self.__class__.__name__, self.logger)
-            if not self._buscar_linea_entrar():
-                return self._cerrar_con_reclamo()
+            self._buscar_linea_entrar()
+            if self.contexto.get("existe_error_qvantel", False):
+                self.logger.warning("⚠️ Error QVANTEL detectado — cierre inmediato.")
+                self._cerrar_con_reclamo_inicial()
+                return False
+
 
             if not self._validar_plan_inicial():
                 validacion_exitosa = self.contexto.get("validacion_exitosa", False)
@@ -170,6 +174,12 @@ class MigracionActions:
         self.migracion_adapter.registrar_detalle(self.contexto)
     
         return self._buscar_linea_salir()
+    
+    def _cerrar_con_reclamo_inicial(self) -> bool:
+        TimeTools.marcar_hora_fin(self.contexto, self.__class__.__name__, self.logger)
+        self.estado_adapter.actualizar_estado_migracion(self.contexto)
+        self.migracion_adapter.registrar_detalle(self.contexto)
+        return True
 
     def _buscar_linea_salir(self) -> bool:
         BuscarLineaAction(self.variables_base, self.contexto).ejecutar(modo="salir")

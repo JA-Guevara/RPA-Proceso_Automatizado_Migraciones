@@ -4,6 +4,7 @@
   "flow": [
     { "action": "wait", "wait_time": 1},
     { "action": "click", "target": "carga_reclamos.reclamos_icon","clicks": 1},
+    { "action": "wait", "wait_time": 1},
     { "action": "click_y_escribir", "target": "carga_reclamos.motivo_field", "value": "4272", "offset_x": 30,"clicks": 2 },
     { "action": "press_key", "target": "tab" },
     { "action": "click", "target": "carga_reclamos.cargar_memo_icon","clicks": 1},

@@ -28,7 +28,9 @@ class ImagePaths:
         "busqueda_button": ruta("buscar_linea", "busqueda_button.png"),
         "nro_linea_field": ruta("buscar_linea", "nro_cuenta_field.png"),
         "procesar_button": ruta("buscar_linea", "procesar_button.png"),
-        "salir_BCCS_button": ruta("buscar_linea", "salir_BCCS_button.png")
+        "salir_BCCS_button": ruta("buscar_linea", "salir_BCCS_button.png"),
+        "error_qvantel": ruta("buscar_linea", "error_qvantel.png"),
+        "confirmar_qvantel": ruta("buscar_linea", "confirmar_qvantel.png")
     }
 
     VALIDACION_PLAN = {

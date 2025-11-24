@@ -37,7 +37,7 @@ class PasoPostAPreAction(ActionBase):
                 self.logger.warning("⚠️ Motivo IDCTL inválido — cierre con reclamo.")
                 self.executor.ejecutar_bloque("reboot_validation")
 
-                self.contexto["linea_migrada"] = False
+                self.contexto["linea_error_migracion"] = True
                 self.contexto["mensaje_memo"] = f"Baja observada - ID solicitud: {id_sharepoint}"
                 self.contexto["baja_realizada"] = "Baja Observada"
                 self.registrar_observacion("La baja no se realizó — IDCTL está en COR")
@@ -47,7 +47,7 @@ class PasoPostAPreAction(ActionBase):
             # ❌ CUALQUIER OTRO ERROR → cierre con reclamo
             self.logger.info("📝 Error distinto a bloqueo. Reiniciando validación...")
             self.executor.ejecutar_bloque("reboot_validation")
-            self.contexto["linea_migrada"] = False
+            self.contexto["linea_error_migracion"] = True
             self.contexto["mensaje_memo"] = f"Baja observada - ID solicitud: {id_sharepoint}"
             self.contexto["baja_realizada"] = "Baja Observada"
             self.registrar_observacion(f"La baja no realizada — error: {mensaje_error}")

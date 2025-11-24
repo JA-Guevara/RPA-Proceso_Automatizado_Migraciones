@@ -146,7 +146,7 @@ class MigracionActions:
         SaldoCoreBalanceAction(self.variables_base, self.contexto).ejecutar()
 
         PasoPostAPreAction(self.variables_base, self.contexto).ejecutar()
-        if self.contexto.get("linea_migrada", False):
+        if self.contexto.get("linea_error_migracion", False):
             return self._cerrar_con_reclamo()
         EliminacionServiciosAction(self.variables_base, self.contexto).ejecutar()
         EliminacionCreacionAction(self.variables_base, self.contexto).ejecutar()

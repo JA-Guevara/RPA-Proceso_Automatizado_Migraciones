@@ -93,10 +93,13 @@ class MigracionActions:
             tipo = self.contexto.get("tipo_baja")
             if tipo == "Migración de Post Pago a Pre Pago":
                 self.logger.info("🚀 Iniciando Migración de Post Pago a Pre Pago")
-                self._migracion_post_pre3()
+                if not self._migracion_post_pre3():
+                    return False  
+                
             elif tipo == "Cambio de Post Pago a Pre Pago R":
                 self.logger.info("🚀 Iniciando Migración de Post Pago a Pre Pago")
-                self._migracion_post_preR()
+                if not self._migracion_post_preR():
+                    return False
             
             if not self._validar_plan_final():
                 validacion_exitosa = self.contexto.get("validacion_exitosa", False)
@@ -144,10 +147,10 @@ class MigracionActions:
 
     def _migracion_post_pre3(self) -> bool:
         SaldoCoreBalanceAction(self.variables_base, self.contexto).ejecutar()
-
         PasoPostAPreAction(self.variables_base, self.contexto).ejecutar()
         if self.contexto.get("linea_error_migracion", False):
-            return self._cerrar_con_reclamo()
+            self._cerrar_con_reclamo()
+            return False 
         EliminacionServiciosAction(self.variables_base, self.contexto).ejecutar()
         EliminacionCreacionAction(self.variables_base, self.contexto).ejecutar()
         return True

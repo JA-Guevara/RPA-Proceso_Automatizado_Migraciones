@@ -10,9 +10,9 @@ class CapturaDatosAction(ActionBase):
 
         try:
             self.executor.ejecutar_bloque("flow")
-            if self.executor.contexto.get("existe_error_captura", False):
+            if self.contexto.get("existe_error_captura", False):
                 self.logger.info("⚠️ Error en captura de fecha, reintentando...")
-                self.executor.contexto["existe_error_captura"] = False  # limpiar ANTES
+                self.contexto["existe_error_captura"] = False  # limpiar ANTES
                 self.executor.ejecutar_bloque("flow")
             return True
 

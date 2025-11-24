@@ -17,9 +17,9 @@ class DesktopExecutor:
         delay_default: float = 0.5
     ):
         self.flow_data = flow
-        self.image_map = image_map or {}
-        self.variables_base = variables_base or {}   # 🔹 fijos (env)
-        self.contexto = contexto or {}               # 🔹 dinámicos (ejecución)
+        self.image_map = image_map or {}  
+        self.variables_base = variables_base or {}  
+        self.contexto = contexto if contexto is not None else {}
         self.delay_default = delay_default
         self.variables = {**self.variables_base, **self.contexto}
 
@@ -234,31 +234,28 @@ class DesktopExecutor:
         self.contexto[campo_destino] = texto
         logger.info(f"📥 Guardado en contexto '{campo_destino}': '{texto}'")
 
-        
-        
-        
-    def _action_extraer_texto_con_destino2(self, paso: dict):
+    def _action_extraer_y_validar_plan(self, paso: dict):
         campo_destino = paso.get("campo_destino")
         if not campo_destino:
             logger.warning("⚠️ No se especificó 'campo_destino' en el paso.")
             return
 
         imagen_referencia, nombre_logico = self._resolver_imagen(paso.get("target"))
-        nombre_region = paso.get("nombre_region", nombre_logico or campo_destino or "region_clipboard")
+        nombre_region = paso.get("nombre_region", nombre_logico or campo_destino)
 
-        texto = self.extractor.extraer_texto_con_clipboard(
+        texto = self.extractor.extraer_y_validar_plan(
             nombre_region=nombre_region,
             imagen_referencia=imagen_referencia,
-            nombre_logico=nombre_logico,
             offset_x=int(paso.get("offset_x", 0)),
             offset_y=int(paso.get("offset_y", 0)),
-            clicks=int(paso.get("clicks", 1)), 
-            transitorio=paso.get("transitorio", False)
+            clicks=int(paso.get("clicks", 1)),
+            contexto=self.contexto,
+            transitorio=paso.get("transitorio", False),
+            nombre_logico=nombre_logico
         )
 
         self.contexto[campo_destino] = texto
         logger.info(f"📥 Guardado en contexto '{campo_destino}': '{texto}'")
-
         
     def _action_extraer_y_validar_imagen(self, paso):
         ruta, nombre = self._resolver_imagen(paso.get("target"))

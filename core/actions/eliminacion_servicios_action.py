@@ -10,7 +10,7 @@ class EliminacionServiciosAction(ActionBase):
         try:
             self.executor.ejecutar_bloque("validation")
 
-            if self.executor.contexto.get("existeRestringirNav", False):
+            if self.contexto.get("existeRestringirNav", False):
                 self.logger.info("✅ Restricción detectada → ejecutando flow_eliminacion")
                 self.executor.ejecutar_bloque("flow_eliminacion")
                 self.contexto["servicios_eliminados_rpa"] = self.contexto.get("servicios_eliminados_rpa", "") + "Restringir Navegación sin Nominación"

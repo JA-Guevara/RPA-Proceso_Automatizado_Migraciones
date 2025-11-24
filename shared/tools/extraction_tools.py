@@ -294,68 +294,6 @@ class ExtractionTools:
             contexto["mensaje_imagen"] = mensaje_error
             return False
 
-
-        
-        
-    def extraer_texto_con_clipboard(
-    self,
-    nombre_region: str,
-    imagen_referencia: Optional[str] = None,
-    offset_x: int = 0,
-    offset_y: int = 0,
-    clicks: int = 1,
-    transitorio: bool = False,
-    nombre_logico: Optional[str] = None,
-    limpiar: bool = True
-) -> str:
-
-        try:
-            # --- Búsqueda de imagen en pantalla ---
-            if imagen_referencia:
-                posicion = self.clicker.buscar_imagen(
-                    imagen_referencia,
-                    nombre_logico=nombre_logico or nombre_region,
-                    transitorio=transitorio
-                )
-
-                if not posicion:
-                    logger.warning(f"⚠️ Imagen de referencia '{imagen_referencia}' no encontrada.")
-                    return ""
-
-                # ✅ Calcular el centro de la imagen detectada
-                left, top, width, height = posicion
-                x = int(left + width / 2) + offset_x
-                y = int(top + height / 2) + offset_y
-            else:
-                # Si no hay imagen, usar coordenadas absolutas
-                x, y = offset_x, offset_y
-
-            # --- Realizar clic en la posición determinada ---
-            logger.info(f"🖱️ Haciendo clic en centro de '{nombre_region}' ({x}, {y}) clicks={clicks}")
-            self.clicker.hacer_clic(
-                target=(x, y),
-                clicks=clicks,
-                usar_imagen=False,  # Ya tenemos las coordenadas
-                raise_error=True,
-                nombre_logico=nombre_logico or nombre_region,
-                transitorio=transitorio
-            )
-
-            # --- Copiar texto desde el portapapeles ---
-            self.app_tools.presionar_combinacion_real("ctrl", "c")
-            self.app_tools.esperar(0.25)
-
-            texto = pyperclip.paste() or ""
-            # if limpiar:
-            #     texto = texto.strip().replace("\r", " ").replace("\n", " ")
-
-            logger.info(f"📋 Texto capturado con clipboard '{nombre_region}': '{texto[:60]}...'")
-            return texto
-
-        except Exception as e:
-            logger.error(f"❌ Error al extraer texto con clipboard en '{nombre_region}': {e}", exc_info=True)
-            return ""
-
     def extraer_numero_dinamico(self, imagen: str, contexto: dict, offset_x: int = 0, offset_y: int = 0,
                              clicks: int = 2, nombre_logico: str = None, campo_destino: str = None,
                              transitorio: bool = False) -> None:
@@ -418,3 +356,76 @@ class ExtractionTools:
         except Exception as e:
             logger.error (f"❌ Error interno al validar y hacer clic [{nombre_logico}]: {e}")
 
+
+    def extraer_y_validar_plan(
+    self,
+    nombre_region: str,
+    imagen_referencia: Optional[str] = None,
+    offset_x: int = 0,
+    offset_y: int = 0,
+    clicks: int = 1,
+    contexto: dict = None,
+    transitorio: bool = False,
+    nombre_logico: Optional[str] = None,
+    limpiar: bool = True
+) -> str:
+
+        try:
+            if imagen_referencia:
+                existe = self.clicker.buscar_imagen(
+                    imagen_referencia,
+                    nombre_logico=nombre_logico or nombre_region,
+                    transitorio=transitorio
+                )
+
+                if not existe:
+                    if contexto is not None:
+                        contexto["existe_error_captura_plan"] = True
+                    logger.warning(f"⚠️ [PLAN] Imagen no encontrada → NO se pudo extraer texto.")
+                    return ""
+
+            self.clicker.hacer_clic(
+                target=imagen_referencia if imagen_referencia else (offset_x, offset_y),
+                clicks=clicks,
+                offset_x=offset_x,
+                offset_y=offset_y,
+                usar_imagen=bool(imagen_referencia),
+                raise_error=True,
+                nombre_logico=nombre_logico or nombre_region,
+                transitorio=transitorio
+            )
+
+            # === 3. Copiar texto ===
+            self.app_tools.presionar_combinacion_real("ctrl", "c")
+            self.app_tools.esperar(0.25)
+
+            texto = pyperclip.paste() or ""
+            # === 4. Limpieza ===
+            if limpiar:
+                texto_limpio = texto.strip()
+                texto_limpio = texto_limpio.replace("\n", " ").replace("\r", " ").replace("\t", " ")
+                texto_limpio = " ".join(texto_limpio.split())
+            else:
+                texto_limpio = texto
+            # === 5. Validaciones ===
+            texto_lower = texto_limpio.lower()
+
+            regla_length = len(texto_limpio) <= 100
+            regla_plan = "plan" in texto_lower
+
+            logger.info(f"🔍 [PLAN] Limpio y filtrado ' ? {texto_limpio}")
+
+            reglas_validas = regla_length and regla_plan
+
+            if contexto is not None:
+                contexto["existe_error_captura_plan"] = not reglas_validas
+            if not reglas_validas:
+                logger.warning(f"⚠️ [PLAN] Texto NO válido según reglas. Se devolverá igualmente: '{texto_limpio}'")
+
+            return texto_limpio
+
+        except Exception as e:
+            logger.error(f"💥 [PLAN] Error al extraer texto en '{nombre_region}': {e}", exc_info=True)
+            if contexto is not None:
+                contexto["existe_error_captura_plan"] = True
+            return ""

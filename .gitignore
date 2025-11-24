@@ -2,6 +2,7 @@ __pycache__/
 venv/
 env/
 .env
+prueba.py
 test_runner.py
 storage/
 registros_prueba.json

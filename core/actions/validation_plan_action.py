@@ -12,8 +12,13 @@ class ValidationPlanAction(ActionBase):
 
         try:
             if modo == "extraer_inicial":
-                # 🔹 Ejecutar bloque de extracción
+                # Primer intento
                 self.executor.ejecutar_bloque("extraer_plan_actual")
+
+                if self.contexto.get("existe_error_captura_plan", False):
+                    self.logger.warning("⚠️ Error capturando plan_actual → Reintentando extracción...")
+                    self.contexto["existe_error_captura_plan"] = False
+                    self.executor.ejecutar_bloque("extraer_plan_actual")   # segundo intento
 
                 plan_actual_rpa = self.contexto.get("plan_actual_rpa", "")
                 tipo_baja = self.contexto.get("tipo_baja")
@@ -62,6 +67,11 @@ class ValidationPlanAction(ActionBase):
             elif modo == "extraer_final":
                 # 🔹 Validación final del plan asignado
                 self.executor.ejecutar_bloque("extraer_plan_asignado")
+
+                if self.contexto.get("existe_error_captura_plan", False):
+                    self.logger.warning("⚠️ Error capturando plan_asignado → Reintentando extracción...")
+                    self.contexto["existe_error_captura_plan"] = False
+                    self.executor.ejecutar_bloque("extraer_plan_asignado")
 
                 plan_asignado_rpa = self.contexto.get("plan_asignado_rpa", "")
                 tipo_baja = self.contexto.get("tipo_baja")

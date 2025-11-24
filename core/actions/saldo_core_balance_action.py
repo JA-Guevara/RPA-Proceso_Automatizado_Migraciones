@@ -13,7 +13,7 @@ class SaldoCoreBalanceAction(ActionBase):
         try:
             self.executor.ejecutar_bloque("validation")
 
-            validacion_exitosa = self.executor.contexto.get("billetera_successful", False)
+            validacion_exitosa = self.contexto.get("billetera_successful", False)
 
             if validacion_exitosa:
                 self.logger.info("✅ Validación exitosa. Ejecutando flujo principal...")

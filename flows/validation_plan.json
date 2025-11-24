@@ -2,13 +2,15 @@
   "meta": {"name": "validacion_plan","retries": 1},
 
   "extraer_plan_actual": [
-        { "action": "wait", "wait_time": 1},
-    { "action": "extraer_texto_con_destino2","target": "validacion_plan.tipo_plan_field", "campo_destino": "plan_actual_rpa","offset_y": 15,"clicks": 1 }
+    { "action": "wait", "wait_time": 1},
+    { "action": "press_key", "target": "tab", "repeticiones": 1 },
+    { "action": "extraer_y_validar_plan","target": "validacion_plan.tipo_plan_field", "campo_destino": "plan_actual_rpa","offset_y": 15,"clicks": 1 }
   ],
   
   "extraer_plan_asignado": [
-        { "action": "wait", "wait_time": 1},
-    { "action": "extraer_texto_con_destino2","target": "validacion_plan.tipo_plan_field", "campo_destino": "plan_asignado_rpa","offset_y": 15,"clicks": 1 }
+    { "action": "wait", "wait_time": 1},
+    { "action": "press_key", "target": "tab", "repeticiones": 1 },
+    { "action": "extraer_y_validar_plan","target": "validacion_plan.tipo_plan_field", "campo_destino": "plan_asignado_rpa","offset_y": 15,"clicks": 1 }
   ],
 
   "reboot_extraer_plan_actual": [

@@ -15,7 +15,7 @@ class CrearServicioFflteAction(ActionBase):
 
             if self.contexto.get("existe_FFLTE", False):
                 self.executor.ejecutar_bloque("validation_FFLTE_error")
-                mensaje_error = self.executor.contexto.get("mensaje_error", "").upper()
+                mensaje_error = self.contexto.get("mensaje_error", "").upper()
 
                 if "CUENTA ESTA BLOQUEADA" in mensaje_error:
                     self.logger.info("🔐 Cuenta bloqueada detectada. Ejecutando flujo de desbloqueo...")

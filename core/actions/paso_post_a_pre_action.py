@@ -13,12 +13,12 @@ class PasoPostAPreAction(ActionBase):
             self.executor.ejecutar_bloque("validation")
 
             # ✅ Caso 1: No hubo errores → ejecutar flujo principal
-            if not self.executor.contexto.get("existe_error", False):
+            if not self.contexto.get("existe_error", False):
                 self.executor.ejecutar_bloque("flow_post_a_pre")
                 return True
 
             # ⚠️ Caso 2: Hubo error → verificar tipo
-            mensaje_error = self.executor.contexto.get("mensaje_error", "")
+            mensaje_error = self.contexto.get("mensaje_error", "")
             self.contexto["existe_error"] = True
 
             if "CUENTA ESTA BLOQUEADA" in mensaje_error.upper():

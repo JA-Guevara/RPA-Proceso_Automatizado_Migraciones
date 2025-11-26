@@ -17,6 +17,7 @@ from shared.tools.app_tools import AppTools
 from shared.tools.click_tools import ClickTools
 from shared.tools.basic_tools import BasicTools
 from shared.tools.region_locator import RegionLocator
+from config.config import EnvConfig
 
 logger = logging.getLogger(__name__)
 
@@ -30,7 +31,7 @@ class ExtractionTools:
         self.clicker = ClickTools()
         self.basic_tools = BasicTools()
         self.region = RegionLocator()
-        pytesseract.pytesseract.tesseract_cmd = r"C:\Users\torricoslo\AppData\Local\Programs\Tesseract-OCR\tesseract.exe"
+        pytesseract.pytesseract.tesseract_cmd = EnvConfig.TESSERACT_PATH
         
 
     def normalizar_ocr(self, texto: str) -> str:

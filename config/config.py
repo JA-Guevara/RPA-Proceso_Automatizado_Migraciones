@@ -33,6 +33,7 @@ class EnvConfig:
     SMS_PASSWORD = os.getenv("SMS_PASSWORD")
     SMS_URL = os.getenv("SMS_URL")
 
+    TESSERACT_PATH = os.getenv("TESSERACT_PATH")
     DESKTOP_URL = os.getenv("DESKTOP_URL")
     DESKTOP_PROCCESS = os.getenv("DESKTOP_PROCCESS")
     

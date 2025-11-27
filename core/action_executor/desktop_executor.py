@@ -314,13 +314,13 @@ class DesktopExecutor:
         )
 
                 
-    def _action_buscar_y_seleccionar_billetera(self, paso):
+    def _action_buscar_y_seleccionar_reintento(self, paso):
         target = paso.get("target", {})
 
         referencia = target.get("referencia")           
         imagenes = target.get("imagenes", [])         
         
-        self.service_tools.buscar_y_seleccionar_billetera(
+        self.service_tools.buscar_y_seleccionar_reintento(
             referencia=referencia,
             imagenes=imagenes,
             contexto=self.contexto,

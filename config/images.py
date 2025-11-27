@@ -150,6 +150,7 @@ class ImagePaths:
     
     ELIMINACION_SERVICIOS = {
         "servicios_button": ruta("eliminacion_servicios", "servicios_button.png"),
+        "pantalla_servicios_icon": ruta("eliminacion_servicios", "pantalla_servicios.png"),
         "servicio_column": ruta("eliminacion_servicios", "servicio_column.png"),
         
         "restringir_nav_option_a": ruta("eliminacion_servicios", "restringir_nav_option_a.png"),

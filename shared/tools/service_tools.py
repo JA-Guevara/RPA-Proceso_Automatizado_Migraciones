@@ -167,7 +167,7 @@ class ServiceTools:
             contexto[key_contexto] = False
             return False
 
-    def buscar_y_seleccionar_billetera(
+    def buscar_y_seleccionar_reintento(
     self,
     referencia: Optional[str],   # Imagen de referencia base (click repetido)
     imagenes: list,              # Lista de imágenes posibles a encontrar

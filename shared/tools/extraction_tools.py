@@ -98,11 +98,11 @@ class ExtractionTools:
             img_resized = cv2.resize(img_gray, None, fx=2, fy=2, interpolation=cv2.INTER_CUBIC)
             _, img_thresh = cv2.threshold(img_resized, 150, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
 
-            # Guardar imagen debug
-            ts = int(time.time() * 1000)
-            dbg_dir = os.path.join("assets", "images_debug")
-            os.makedirs(dbg_dir, exist_ok=True)
-            cv2.imwrite(os.path.join(dbg_dir, f"ocr_{nombre_region}_{ts}.png"), img_thresh)
+            # # Guardar imagen debug
+            # ts = int(time.time() * 1000)
+            # dbg_dir = os.path.join("assets", "images_debug")
+            # os.makedirs(dbg_dir, exist_ok=True)
+            # cv2.imwrite(os.path.join(dbg_dir, f"ocr_{nombre_region}_{ts}.png"), img_thresh)
 
             # === 3️⃣ OCR ===
             config = r'--psm 7 --oem 3'

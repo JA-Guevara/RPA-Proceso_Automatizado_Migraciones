@@ -27,7 +27,7 @@ class ValidationPlanAction(ActionBase):
                 id_sharepoint = self.contexto.get("id_sharepoint")
 
                 # --- Validación de plan INICIAL ---
-                ok_inicio = self.plan_adapter.es_plan_valido(id_tipo_baja, id_tipo_lista, plan_actual_rpa, "INICIAL")
+                ok_inicio = self.plan_adapter.es_plan_valido( id_tipo_lista, plan_actual_rpa, "INICIAL")
 
                 if ok_inicio:
                     self.logger.info(f"✅ Plan {plan_actual_rpa} habilitado para lista {id_tipo_lista} (tipo_baja={tipo_baja})")
@@ -40,7 +40,7 @@ class ValidationPlanAction(ActionBase):
                     return True
 
                 # 🔁 No es válido como INICIAL → verificamos FINAL
-                ok_final = self.plan_adapter.es_plan_valido(id_tipo_baja, id_tipo_lista, plan_actual_rpa, "FINAL")
+                ok_final = self.plan_adapter.es_plan_valido(id_tipo_lista, plan_actual_rpa, "FINAL")
 
                 if ok_final:
                     self.logger.info(f"ℹ️ Plan '{plan_actual_rpa}' válido como FINAL → migrado por otro canal.")
@@ -81,7 +81,7 @@ class ValidationPlanAction(ActionBase):
 
                 self.logger.info(f"📥 Plan final extraído: {plan_asignado_rpa}")
 
-                ok_final = self.plan_adapter.es_plan_valido(id_tipo_baja, id_tipo_lista, plan_asignado_rpa, "FINAL")
+                ok_final = self.plan_adapter.es_plan_valido(id_tipo_lista, plan_asignado_rpa, "FINAL")
 
                 if ok_final:
                     self.logger.info(f"✅ Validación final correcta | asignado={plan_asignado_rpa}")

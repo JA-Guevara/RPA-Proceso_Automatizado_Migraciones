@@ -3,7 +3,8 @@ from shared.tools.click_tools import ClickTools
 from shared.tools.extraction_tools import ExtractionTools
 from shared.tools.service_tools import ServiceTools
 from shared.tools.app_tools import AppTools
-
+from shared.tools.basic_tools import BasicTools
+from shared.tools.exceptions import RPAExceptions
 
 logger = logging.getLogger(__name__)
 
@@ -26,33 +27,106 @@ class DesktopExecutor:
         self.clicker = ClickTools()
         self.extractor = ExtractionTools()
         self.app_tools = AppTools()
+        self.basic_tools = BasicTools()
         self.service_tools = ServiceTools(executor=self, contexto=self.contexto)
 
-        logger.info(f"📙️ Variables base: {self.variables_base}")
+        # 🔒 Nunca loguear credenciales en claro
+        safe_vars = {
+            k: ("****" if any(s in k.lower() for s in ("pass", "pwd", "secret", "token")) else v)
+            for k, v in self.variables_base.items()
+        }
+        logger.info(f"📙️ Variables base: {safe_vars}")
         logger.info(f"📦 Contexto inicial: {self.contexto}")
 
     # ------------------- Ejecutor -------------------
 
     def ejecutar_bloque(self, bloque: str):
         pasos = self.flow_data.get(bloque, [])
+
         if not isinstance(pasos, list):
-            logger.error(f"❌ El bloque '{bloque}' no contiene una lista de pasos válida.")
-            return
+            mensaje = f"El bloque '{bloque}' no contiene una lista de pasos válida."
+            logger.error(f"❌ {mensaje}")
+            raise RPAExceptions.FlujoException(mensaje)
 
         logger.info(f"🚀 Ejecutando bloque: {bloque} ({len(pasos)} pasos)")
-        for paso in pasos:
-            paso = self._reemplazar_variables(paso)
-            action = paso.get("action") or paso.get("tipo")
+
+        for indice, paso_original in enumerate(pasos, start=1):
+            action = paso_original.get("action") or paso_original.get("tipo") or "SIN_ACTION"
 
             try:
+                paso = self._reemplazar_variables(
+                    paso=paso_original,
+                    bloque=bloque,
+                    indice=indice,
+                    total=len(pasos),
+                    action=action,
+                )
+
                 handler = getattr(self, f"_action_{action}", None)
-                if handler:
-                    handler(paso)
-                else:
-                    logger.warning(f"⚠️ Acción desconocida: {action}")
+
+                if not handler:
+                    mensaje = (
+                        f"Acción desconocida en flow. "
+                        f"Bloque='{bloque}', paso={indice}/{len(pasos)}, action='{action}'."
+                    )
+                    logger.warning(f"⚠️ {mensaje}")
+                    raise RPAExceptions.FlujoException(mensaje)
+
+                logger.info(f"▶️ Ejecutando paso {indice}/{len(pasos)} | bloque={bloque} | action={action}")
+                handler(paso)
+
+            except RPAExceptions.ErrorBaseException:
+                raise
+
             except Exception as e:
-                logger.error(f"❌ Error ejecutando acción '{action}': {e}", exc_info=True)
-                raise 
+                mensaje = (
+                    f"Error ejecutando paso del flow. "
+                    f"Bloque='{bloque}', paso={indice}/{len(pasos)}, action='{action}', "
+                    f"detalle={e}"
+                )
+                logger.error(f"❌ {mensaje}", exc_info=True)
+                raise RPAExceptions.FlujoException(mensaje)
+
+
+    def _parse_value(self, value, *, bloque: str, indice: int, total: int, action: str, campo: str):
+        if isinstance(value, str) and value.startswith("$"):
+            variable_name = value[1:]
+
+            if variable_name in self.contexto:
+                return str(self.contexto[variable_name])
+
+            if variable_name in self.variables_base:
+                return str(self.variables_base[variable_name])
+
+            disponibles_base = ", ".join(sorted(self.variables_base.keys())) or "(vacío)"
+            disponibles_contexto = ", ".join(sorted(self.contexto.keys())) or "(vacío)"
+
+            mensaje = (
+                f"Variable requerida no encontrada. "
+                f"Bloque='{bloque}', paso={indice}/{total}, action='{action}', "
+                f"campo='{campo}', variable='${variable_name}'. "
+                f"Disponibles variables_base=[{disponibles_base}]. "
+                f"Disponibles contexto=[{disponibles_contexto}]."
+            )
+
+            logger.error(f"❌ {mensaje}")
+            raise RPAExceptions.FlujoException(mensaje)
+
+        return value
+
+
+    def _reemplazar_variables(self, paso: dict, *, bloque: str, indice: int, total: int, action: str) -> dict:
+        return {
+            key: self._parse_value(
+                value,
+                bloque=bloque,
+                indice=indice,
+                total=total,
+                action=action,
+                campo=key,
+            )
+            for key, value in paso.items()
+        }
 
     def _resolver_imagen(self, target_key: str):
         if isinstance(target_key, tuple):
@@ -72,18 +146,6 @@ class DesktopExecutor:
         return ruta, target_key
 
 
-    def _parse_value(self, value):
-        if isinstance(value, str) and value.startswith("$"):
-            variable_name = value[1:]
-            resolved = self.contexto.get(variable_name, self.variables_base.get(variable_name))
-            if resolved is None:
-                raise ValueError(f"⚠️ Variable '{variable_name}' no encontrada ni en contexto ni en variables base.")
-            return str(resolved)
-        return value
-
-    def _reemplazar_variables(self, paso: dict) -> dict:
-        return {k: self._parse_value(v) for k, v in paso.items()}
-
     # ------------------- Acciones -------------------
 
     def _action_click(self, paso):
@@ -94,7 +156,9 @@ class DesktopExecutor:
             offset_x=paso.get("offset_x", 0),
             offset_y=paso.get("offset_y", 0),
             clicks=paso.get("clicks", 1),
-            transitorio=paso.get("transitorio", False)
+            transitorio=paso.get("transitorio", False),
+            raise_error=paso.get("raise_error", True),
+            timeout=paso.get("timeout")
         )
 
     def _action_fill(self, paso):
@@ -103,17 +167,22 @@ class DesktopExecutor:
             ruta, paso.get("value", ""), nombre_logico=nombre,
             delay=paso.get("delay", self.delay_default),
             offset_x=paso.get("offset_x", 0), offset_y=paso.get("offset_y", 0),
-            transitorio=paso.get("transitorio", False)
+            transitorio=paso.get("transitorio", False),
+            raise_error=paso.get("raise_error", True),
+            timeout=paso.get("timeout")
         )
 
     def _action_clipboard_fill(self, paso):
+        # Nota: antes llamaba a un método inexistente en ClickTools
+        # (escribir_texto_clipboard); se redirige a clic_y_escribir,
+        # que es clic + escritura vía clipboard.
         ruta, nombre = self._resolver_imagen(paso.get("target"))
-        self.clicker.escribir_texto_clipboard(
-            paso.get("value", ""),
-            target=ruta,
-            nombre_logico=nombre,
+        self.clicker.clic_y_escribir(
+            ruta, paso.get("value", ""), nombre_logico=nombre,
             delay=paso.get("delay", self.delay_default),
-            transitorio=paso.get("transitorio", False)
+            transitorio=paso.get("transitorio", False),
+            raise_error=paso.get("raise_error", True),
+            timeout=paso.get("timeout")
         )
 
     def _action_click_y_escribir(self, paso):
@@ -122,7 +191,9 @@ class DesktopExecutor:
             ruta, paso.get("value", ""), nombre_logico=nombre,
             offset_x=paso.get("offset_x", 0), offset_y=paso.get("offset_y", 0),
             delay=paso.get("delay", self.delay_default), clicks=paso.get("clicks", 1),
-            transitorio=paso.get("transitorio", False)
+            transitorio=paso.get("transitorio", False),
+            raise_error=paso.get("raise_error", True),
+            timeout=paso.get("timeout")
         )
 
     def _action_click_escribir(self, paso):
@@ -131,7 +202,9 @@ class DesktopExecutor:
             ruta, paso.get("value", ""), nombre_logico=nombre,
             offset_x=paso.get("offset_x", 0), offset_y=paso.get("offset_y", 0),
             delay=paso.get("delay", self.delay_default), clicks=paso.get("clicks", 1),
-            transitorio=paso.get("transitorio", False)
+            transitorio=paso.get("transitorio", False),
+            raise_error=paso.get("raise_error", True),
+            timeout=paso.get("timeout")
         )
 
     def _action_press_key(self, paso):
@@ -189,22 +262,6 @@ class DesktopExecutor:
     def _action_wait(self, paso):
         self.app_tools.esperar(
             paso.get("wait_time", 1)
-        )
-
-    def _action_abrir_rdp(self, paso):
-        host = paso.get("host") or paso.get("ruta") or self.variables_base.get("host_rdp")
-        user = paso.get("usuario") or self.variables_base.get("usuario_rdp")
-        password = paso.get("password") or self.variables_base.get("clave_rdp")
-        wait_time = paso.get("wait_time")
-
-        if not host:
-            raise ValueError("⚠️ No se ha definido el host para conexión RDP.")
-
-        self.app_tools.conectar_rdp(
-            host=host,
-            user=user,
-            password=password,
-            wait_time=wait_time
         )
 
     def _action_extraer_texto_con_destino(self, paso: dict):

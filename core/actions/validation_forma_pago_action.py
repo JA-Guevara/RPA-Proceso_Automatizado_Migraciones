@@ -3,7 +3,7 @@ from core.action_base.action_base import ActionBase
 
 class ValidationFormaPagoAction(ActionBase):
     def __init__(self, variables_base, contexto):
-        super().__init__(variables_base, contexto, flow_name="validation_forma_pago", executor_type="desktop")
+        super().__init__(variables_base, contexto, flow_name="validation_forma_pago")
         self.executor._action_extraer_validar_forma_pago = self.extraer_validar_forma_pago
 
     def ejecutar(self):
@@ -11,10 +11,8 @@ class ValidationFormaPagoAction(ActionBase):
         self.hora_inicio()
 
         try:
-            # 1. Extraer valor actual desde pantalla y guardar en el contexto
             self.executor.ejecutar_bloque("validation")
 
-            # 2. Obtener el valor del contexto (no de variables_base)
             forma_actual = self.contexto.get("forma_pago_rpa", "").strip().upper()
             self.logger.info(f"🔍 Forma de pago detectada: '{forma_actual}'")
 
@@ -22,10 +20,9 @@ class ValidationFormaPagoAction(ActionBase):
                 self.logger.info("✅ Forma de pago ya es '' o CREDITO. No se requiere cambio.")
                 self.contexto["forma_pago_anterior_rpa"] = forma_actual
                 self.contexto["forma_pago_posterior_rpa"] = forma_actual
-                
+
                 return True
 
-            # 3. Si es diferente, ejecutar bloque de corrección (flow)
             self.logger.info("🔁 Forma de pago distinta de CREDITO. Ejecutando cambio...")
             self.executor.ejecutar_bloque("flow")
 
@@ -70,7 +67,6 @@ class ValidationFormaPagoAction(ActionBase):
             texto = pyperclip.paste().strip().upper()
             self.logger.info(f"📋 Texto original copiado:\n{texto[:300]}...")
 
-            # ✅ Buscar número de cuenta desde el contexto (no de variables_base)
             nro_cuenta = str(
                 self.contexto.get("nro_cuenta") or 
                 self.contexto.get("nro_linea", "")
@@ -80,7 +76,6 @@ class ValidationFormaPagoAction(ActionBase):
                 self.logger.warning("⚠️ Número de cuenta no encontrado en el contexto.")
                 return texto
 
-            # 🔎 Buscar línea que contenga CET y el número de cuenta
             lineas = texto.splitlines()
             fila_objetivo = -1
             linea_objetiva = ""
@@ -95,7 +90,6 @@ class ValidationFormaPagoAction(ActionBase):
                 self.logger.info(f"✅ Coincidencia con 'CET' y número de cuenta encontrada en línea {fila_objetivo + 1}")
                 self.app_tools.presionar_tecla_real("down", repeticiones=fila_objetivo + 1)
 
-                # 🧠 Guardar en el contexto
                 self.contexto["fila_contratos_encontrada"] = fila_objetivo + 1
                 self.contexto["linea_contratos"] = linea_objetiva
             else:
@@ -106,3 +100,5 @@ class ValidationFormaPagoAction(ActionBase):
         except Exception as e:
             self.logger.error(f"❌ Error en extraer_validar_forma_pago: {e}", exc_info=True)
             return ""
+
+

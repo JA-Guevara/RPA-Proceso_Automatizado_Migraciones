@@ -1,9 +1,12 @@
-import os
 import json
+import logging
 import shutil
-from pathlib import Path
 from hashlib import md5
+from pathlib import Path
+
 from playwright.async_api import async_playwright
+
+logger = logging.getLogger(__name__)
 
 
 class BrowserManager:
@@ -11,119 +14,186 @@ class BrowserManager:
         self,
         headless: bool = False,
         storage_file: str = "storage/cookies/storage_state.json",
-        remember_session: bool = True
+        remember_session: bool = True,
+        launch_args: list | None = None,
+        ignore_https_errors: bool = False,
+        permissions: list[str] | None = None,
+        permission_origin: str | None = None,
     ):
         self.headless = headless
-        self.storage_file = storage_file
+        self.storage_file = Path(storage_file)
         self.remember_session = remember_session
-        self.playwright = None
-        self.browser = None
-        self.context = None
-        self.session_changed = False  
-        
+        self.launch_args = launch_args or []
+        self.ignore_https_errors = ignore_https_errors
+
+        self._playwright = None
+        self._browser = None
+        self._context = None
+        self.permissions = permissions or []
+        self.permission_origin = permission_origin
+
     async def init_browser(self):
-        """Inicializa Playwright y lanza Chromium si aún no está activo."""
-        if not self.playwright:
-            self.playwright = await async_playwright().start()
-        if not self.browser:
-            self.browser = await self.playwright.chromium.launch(headless=self.headless)
-        return self.browser
+        if self._playwright is None:
+            self._playwright = await async_playwright().start()
 
-    async def create_browser_context(self):
-        """Crea un nuevo contexto con o sin cookies guardadas."""
+        if self._browser is None:
+            self._browser = await self._playwright.chromium.launch(
+                headless=self.headless,
+                args=self.launch_args,
+            )
+
+        return self._browser
+
+    async def create_browser_context(self, no_viewport: bool = False):
+        if self._context:
+            return self._context
+
         await self.init_browser()
+        self.storage_file.parent.mkdir(parents=True, exist_ok=True)
 
-        storage_dir = os.path.dirname(self.storage_file)
-        os.makedirs(storage_dir, exist_ok=True)
+        opciones = {
+            "accept_downloads": True,
+            "ignore_https_errors": self.ignore_https_errors,
+        }
 
-        if self.remember_session and os.path.exists(self.storage_file):
-            try:
-                print(f"🧠 Cargando estado de sesión desde {self.storage_file}")
-                self.context = await self.browser.new_context(
-                    storage_state=self.storage_file,
-                    accept_downloads=True
+        if no_viewport:
+            opciones["no_viewport"] = True
+
+        if self.permissions:
+            opciones["permissions"] = self.permissions
+
+        try:
+            if self.remember_session and self.storage_file.exists():
+                logger.info(f"🧠 Cargando sesión desde {self.storage_file}")
+                self._context = await self._browser.new_context(
+                    storage_state=str(self.storage_file),
+                    **opciones,
                 )
-            except Exception as e:
-                print(f"⚠️ Error cargando storage_state.json, creando contexto limpio: {e}")
-                self.context = await self.browser.new_context(accept_downloads=True)
-        else:
-            print("🆕 Iniciando contexto limpio (sin cookies guardadas)")
-            self.context = await self.browser.new_context(accept_downloads=True)
+            else:
+                logger.info("🆕 Contexto limpio")
+                self._context = await self._browser.new_context(**opciones)
 
-        return self.context
+        except Exception as e:
+            logger.warning(f"⚠ Error cargando sesión, creando contexto limpio: {e}")
+            self._context = await self._browser.new_context(**opciones)
+
+        if self.permissions:
+            if self.permission_origin:
+                await self._context.grant_permissions(
+                    self.permissions,
+                    origin=self.permission_origin,
+                )
+            else:
+                await self._context.grant_permissions(self.permissions)
+
+            logger.info(f"🔐 Permisos navegador concedidos: {self.permissions}")
+
+        return self._context
 
     async def get_new_page(self):
-        """Devuelve una nueva página lista para usarse."""
-        if not self.context:
+        if self._context is None:
             await self.create_browser_context()
-        return await self.context.new_page()
+
+        return await self._context.new_page()
+
+    async def poner_pantalla_completa(self, page):
+        if self.headless:
+            logger.info("ℹ️ Fullscreen omitido porque el navegador está en headless")
+            return
+
+        if self._context is None:
+            logger.warning("⚠️ No existe contexto para aplicar fullscreen")
+            return
+
+        cdp = await self._context.new_cdp_session(page)
+
+        try:
+            info = await cdp.send("Browser.getWindowForTarget")
+            window_id = info["windowId"]
+
+            try:
+                await cdp.send(
+                    "Browser.setWindowBounds",
+                    {
+                        "windowId": window_id,
+                        "bounds": {"windowState": "fullscreen"},
+                    },
+                )
+            except Exception:
+                await cdp.send(
+                    "Browser.setWindowBounds",
+                    {
+                        "windowId": window_id,
+                        "bounds": {"windowState": "normal"},
+                    },
+                )
+
+                await cdp.send(
+                    "Browser.setWindowBounds",
+                    {
+                        "windowId": window_id,
+                        "bounds": {"windowState": "fullscreen"},
+                    },
+                )
+
+            logger.info("🖥️ Navegador en pantalla completa vía CDP")
+
+        finally:
+            await cdp.detach()
 
     async def save_storage(self):
-        """Guarda cookies/estado de sesión solo si hubo cambios."""
-        if not (self.context and self.remember_session):
+        if not self._context or not self.remember_session:
             return
 
         try:
-            # Serializa el nuevo estado
-            new_state = await self.context.storage_state()
-            os.makedirs(os.path.dirname(self.storage_file), exist_ok=True)
-
-            # Calcula hash MD5 del nuevo estado
+            new_state = await self._context.storage_state()
             new_hash = md5(json.dumps(new_state, sort_keys=True).encode()).hexdigest()
-            old_hash = None
+            old_hash = self._get_storage_hash()
 
-            # Si ya existe un storage previo, compara el hash
-            if os.path.exists(self.storage_file):
-                try:
-                    with open(self.storage_file, "r", encoding="utf-8") as f:
-                        old_state = json.load(f)
-                        old_hash = md5(json.dumps(old_state, sort_keys=True).encode()).hexdigest()
-                except Exception:
-                    pass  # Si el archivo está corrupto, se reemplazará
-
-            # Solo guarda si cambió o si hubo login/logout
-            if new_hash != old_hash or self.session_changed:
-                await self.context.storage_state(path=self.storage_file)
-                print(f"💾 Estado de sesión actualizado en {self.storage_file}")
-                self.session_changed = False
+            if new_hash != old_hash:
+                await self._context.storage_state(path=str(self.storage_file))
+                logger.info(f"💾 Sesión guardada en {self.storage_file}")
             else:
-                print("ℹ️ Sin cambios en la sesión, no se volvió a guardar.")
+                logger.info("ℹ Sin cambios en sesión")
 
         except Exception as e:
-            print(f"⚠️ Error al guardar storage_state.json: {e}")
+            logger.error(f"⚠ Error guardando sesión: {e}")
+
+    def _get_storage_hash(self):
+        if not self.storage_file.exists():
+            return None
+
+        try:
+            old_state = json.loads(self.storage_file.read_text(encoding="utf-8"))
+            return md5(json.dumps(old_state, sort_keys=True).encode()).hexdigest()
+        except Exception:
+            return None
 
     async def close_browser(self, clear_storage: bool = False):
-        """Cierra navegador, contexto y opcionalmente limpia la sesión."""
         try:
-            # Guarda cookies antes de cerrar (solo si hubo cambios)
-            if self.context and self.remember_session:
+            if self._context and self.remember_session:
                 await self.save_storage()
 
-            if self.context:
-                await self.context.close()
-                print("✔ Contexto cerrado correctamente.")
+            if self._context:
+                await self._context.close()
+                self._context = None
 
-            if self.browser:
-                await self.browser.close()
-                self.browser = None
-                print("✔ Navegador cerrado correctamente.")
+            if self._browser:
+                await self._browser.close()
+                self._browser = None
 
-            if self.playwright:
-                await self.playwright.stop()
-                self.playwright = None
-                print("✔ Playwright detenido correctamente.")
+        finally:
+            if self._playwright:
+                await self._playwright.stop()
+                self._playwright = None
 
-            # Limpieza manual si se solicita
-            if clear_storage and os.path.exists(self.storage_file):
-                os.remove(self.storage_file)
-                print("🧹 Archivo de sesión eliminado manualmente.")
-
-        except Exception as e:
-            print(f"⚠️ Error al cerrar navegador: {e}")
+            if clear_storage and self.storage_file.exists():
+                self.storage_file.unlink()
+                logger.info("🧹 Archivo de sesión eliminado")
 
     async def clear_temp_files(self):
-        """Elimina carpetas temporales generadas por el usuario o playwright."""
-        temp_folder = "user_data"
-        if os.path.exists(temp_folder):
+        temp_folder = Path("user_data")
+
+        if temp_folder.exists():
             shutil.rmtree(temp_folder, ignore_errors=True)
-            print("🧹 Carpeta temporal eliminada.")
+            logger.info("🧹 Carpeta temporal eliminada")

@@ -10,15 +10,15 @@ class ImagePaths:
         "password_field": ruta("login", "password_field.png"),
         "log_field": ruta("login", "log_field.png"),
         "ok_button": ruta("login", "ok_button.png"),
-        
+
         "BCCS_icons": ruta("login", "BCCS_icons.png"),
         "user_BCCS_field": ruta("login", "user_BCCS_field.png"),
         "password_BCCS_field": ruta("login", "password_BCCS_field.png"),
         "ok_BCCS_button": ruta("login", "ok_BCCS_button.png"),
-        
+
         "telefonia_icons": ruta("login", "telefonia_icons.png"),
         "modulos_BCCS": ruta("login", "modulos_BCCS.png"),
-    
+
         "busqueda_button": ruta("login", "busqueda_button.png")
 
     }
@@ -79,7 +79,7 @@ class ImagePaths:
         "situacion_field": ruta("validations", "validation_estado_controlado", "situacion_field.png"),
         "ventas_button": ruta("validations", "validation_estado_controlado", "ventas_button.png"),
         "fecha_comercial_button": ruta("validations", "validation_estado_controlado", "fecha_comercial_button.png"),
-        
+
         "cambio_equipo_icon": ruta("validations", "validation_estado_controlado", "cambio_equipo_icon.png"),
         "sin_Cpte_button": ruta("validations", "validation_estado_controlado", "sin_Cpte_button.png"),
 
@@ -97,7 +97,7 @@ class ImagePaths:
         "aceptar_button": ruta("saldo_core_balance", "aceptar_button.png"),
         "estado_field": ruta("saldo_core_balance", "estado_field.png"),
         "successfull_message": ruta("saldo_core_balance", "successfull_message.png"),
-        
+
         "refrescar_datos_icon": ruta("saldo_core_balance", "refrescar_datos_icon.png"),
         "respuesta_datos_icon": ruta("saldo_core_balance", "respuesta_datos_icon.png"),
         "inicio_billetera_text": ruta("saldo_core_balance", "inicio_billetera_text.png"),
@@ -114,7 +114,7 @@ class ImagePaths:
         "crear_button": ruta("carga_reclamos", "crear_button.png")
 
     }
-    
+
     CAPTURA_DATOS = {
         "fecha_habil_field": ruta("captura_datos", "fecha_habil_field.png"),
         "cuenta_button": ruta("captura_datos", "cuenta_button.png"),
@@ -123,11 +123,11 @@ class ImagePaths:
         "producto_field": ruta("captura_datos", "producto_field.png"),
         "salir_button": ruta("captura_datos", "salir_button.png")
     }
-    
+
     PASO_POST_A_PRE = {
         "procesos_button": ruta("paso_post_a_pre", "procesos_button.png"),
         "paso_cuenta_option": ruta("paso_post_a_pre", "paso_cuenta_option.png"),
-        
+
         "plan_comercial_field": ruta("paso_post_a_pre", "plan_comercial_field.png"),
         "plan_consumo_field": ruta("paso_post_a_pre", "plan_consumo_field.png"),
         "codigo_motivo_field": ruta("paso_post_a_pre", "codigo_motivo_field.png"),
@@ -138,26 +138,26 @@ class ImagePaths:
         "procesar_button": ruta("paso_post_a_pre", "procesar_button.png"),
 
     }
-    
+
     LIBERACION_CUENTA = {
         "image_error": ruta("liberacion_cuenta", "image_error.png"),
-        
+
         "procesos_button": ruta("liberacion_cuenta", "procesos_button.png"),
         "liberar_cuenta_option": ruta("liberacion_cuenta", "liberar_cuenta_option.png"),
         "aceptar_button": ruta("liberacion_cuenta", "aceptar_button.png"),
         "ok_button": ruta("liberacion_cuenta", "ok_button.png"),
     }
-    
+
     ELIMINACION_SERVICIOS = {
         "servicios_button": ruta("eliminacion_servicios", "servicios_button.png"),
         "pantalla_servicios_icon": ruta("eliminacion_servicios", "pantalla_servicios.png"),
         "servicio_column": ruta("eliminacion_servicios", "servicio_column.png"),
-        
+
         "restringir_nav_option_a": ruta("eliminacion_servicios", "restringir_nav_option_a.png"),
         "restringir_nav_option_b": ruta("eliminacion_servicios", "restringir_nav_option_b.png"),
         "restringir_nav_option_a2": ruta("eliminacion_servicios", "restringir_nav_option_a2.png"),
         "restringir_nav_option_b2": ruta("eliminacion_servicios", "restringir_nav_option_b2.png"),
-        
+
         "edicion_servicios_icon": ruta("eliminacion_servicios", "edicion_servicios_icon.png"),
         "descripcion_servicio_column": ruta("eliminacion_servicios", "descripcion_servicio_column.png"),
         "eliminar_servicio_icon": ruta("eliminacion_servicios", "eliminar_servicio_icon.png"),
@@ -166,48 +166,50 @@ class ImagePaths:
         "procesar_button": ruta("eliminacion_servicios", "procesar_button.png"),
         "salir_button": ruta("eliminacion_servicios", "salir_button.png")
     }
-    
+
     VALIDATION_IDCTL_ACTUAL = {
         "idctl_actual_field": ruta("validations", "validation_idctl_actual", "idctl_actual_field.png"),
         "plan_consumo_button": ruta("validations", "validation_idctl_actual", "plan_consumo_button.png"),
         "cambio_plan_button": ruta("validations", "validation_idctl_actual", "cambio_plan_button.png"),
+        "descripcion_column": ruta("validations", "validation_idctl_actual", "descripcion_column.png"),
         "salir_button": ruta("validations", "validation_idctl_actual", "salir_button.png"),
-        
+
         "cambio_plan_icon": ruta("validations", "validation_idctl_actual", "cambio_plan_icon.png"),
         "eliminar_plan_button": ruta("validations", "validation_idctl_actual", "eliminar_plan_button.png")
     }
-    
+
     VERIFICAR_CREAR_SERVICIO = {
         "servicios_button": ruta("varificar_crear_servicios", "servicios_button.png"),
         "servicio_column": ruta("varificar_crear_servicios", "servicio_column.png"),
         "LDL_LDN_900_option_a": ruta("varificar_crear_servicios", "LDL_LDN_900_option_a.png"),
         "LDL_LDN_900_option_b": ruta("varificar_crear_servicios", "LDL_LDN_900_option_b.png"),
-        
+
         "LDL_LDN_900_option_a2": ruta("varificar_crear_servicios", "LDL_LDN_900_option_a2.png"),
         "LDL_LDN_900_option_b2": ruta("varificar_crear_servicios", "LDL_LDN_900_option_b2.png"),
-        
+
         "edicion_servicios_icon": ruta("varificar_crear_servicios", "edicion_servicios_icon.png"),
-        
+
         "eliminar_servicios_icon": ruta("varificar_crear_servicios", "eliminar_servicios_icon.png"),
         "suprimir_button": ruta("varificar_crear_servicios", "suprimir_button.png"),
         "yes_button": ruta("varificar_crear_servicios", "yes_button.png"),
 
-        
+
         "descripcion_column": ruta("varificar_crear_servicios", "descripcion_column.png"),
         "alcance_llamada_option_a": ruta("varificar_crear_servicios", "alcance_llamada_option_a.png"),
         "alcance_llamada_option_b": ruta("varificar_crear_servicios", "alcance_llamada_option_b.png"),
-        
+
         "cod_column": ruta("varificar_crear_servicios", "cod_column.png"),
+        "actualizar2_button": ruta("varificar_crear_servicios", "actualizar2_button.png"),
         "factura_fija_option_a": ruta("varificar_crear_servicios", "factura_fija_option_a.png"),
         "factura_fija_option_b": ruta("varificar_crear_servicios", "factura_fija_option_b.png"),
         "procesar_button": ruta("varificar_crear_servicios", "procesar_button.png"),
         "salir_button": ruta("varificar_crear_servicios", "salir_button.png"),
-        
+
         "FFLTE_option_a": ruta("varificar_crear_servicios", "FFLTE_option_a.png"),
         "FFLTE_option_b": ruta("varificar_crear_servicios", "FFLTE_option_b.png"),
 
     }
-    
+
     PROGRAMAR_CAMBIO = {
         "modificaciones_button": ruta("programar_cambio", "modificaciones_button.png"),
         "cuenta_option": ruta("programar_cambio", "cuenta_option.png"),
@@ -226,7 +228,7 @@ class ImagePaths:
         "procesar_button": ruta("eliminacion_creacion", "procesar_button.png"),
         "ok_button": ruta("eliminacion_creacion", "ok_button.png"),
     }
-    
+
     LOGOUT = {
         "salir_BCCS_button": ruta("logout", "salir_BCCS_button.png"),
         "salir_menu_button": ruta("logout", "salir_menu_button.png")
@@ -253,5 +255,7 @@ class ImagePaths:
             "eliminacion_creacion" : cls.ELIMINACION_CREACION,
             "eliminacion_servicios" : cls.ELIMINACION_SERVICIOS,
             "programar_cambio" : cls.PROGRAMAR_CAMBIO
-            
+
         }
+
+

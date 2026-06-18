@@ -3,7 +3,7 @@ from infrastructure.database.adapters.planes_adapter import PlanesSQLAdapter
 
 class ValidationPlanAction(ActionBase):
     def __init__(self, variables_base, contexto):
-        super().__init__(variables_base, contexto, flow_name="validation_plan", executor_type="desktop")
+        super().__init__(variables_base, contexto, flow_name="validation_plan")
         self.plan_adapter = PlanesSQLAdapter()
 
     def ejecutar(self, modo="extraer_inicial"):
@@ -12,13 +12,12 @@ class ValidationPlanAction(ActionBase):
 
         try:
             if modo == "extraer_inicial":
-                # Primer intento
                 self.executor.ejecutar_bloque("extraer_plan_actual")
 
                 if self.contexto.get("existe_error_captura_plan", False):
                     self.logger.warning("⚠️ Error capturando plan_actual → Reintentando extracción...")
                     self.contexto["existe_error_captura_plan"] = False
-                    self.executor.ejecutar_bloque("extraer_plan_actual")   # segundo intento
+                    self.executor.ejecutar_bloque("extraer_plan_actual")
 
                 plan_actual_rpa = self.contexto.get("plan_actual_rpa", "")
                 tipo_baja = self.contexto.get("tipo_baja")
@@ -26,7 +25,6 @@ class ValidationPlanAction(ActionBase):
                 id_tipo_lista = self.contexto.get("id_tipo_lista")
                 id_sharepoint = self.contexto.get("id_sharepoint")
 
-                # --- Validación de plan INICIAL ---
                 ok_inicio = self.plan_adapter.es_plan_valido( id_tipo_lista, plan_actual_rpa, "INICIAL")
 
                 if ok_inicio:
@@ -39,7 +37,6 @@ class ValidationPlanAction(ActionBase):
                     })
                     return True
 
-                # 🔁 No es válido como INICIAL → verificamos FINAL
                 ok_final = self.plan_adapter.es_plan_valido(id_tipo_lista, plan_actual_rpa, "FINAL")
 
                 if ok_final:
@@ -53,7 +50,6 @@ class ValidationPlanAction(ActionBase):
                     self.registrar_observacion("Línea ya migrada por otro canal antes de ejecución del bot")
                     return False
 
-                # ❌ No es válido ni INICIAL ni FINAL
                 self.logger.warning(f"❌ Plan '{plan_actual_rpa}' no habilitado ni como INICIAL ni FINAL.")
                 self.contexto.update({
                     "plan_valido": False,
@@ -65,7 +61,6 @@ class ValidationPlanAction(ActionBase):
                 return False
 
             elif modo == "extraer_final":
-                # 🔹 Validación final del plan asignado
                 self.executor.ejecutar_bloque("extraer_plan_asignado")
 
                 if self.contexto.get("existe_error_captura_plan", False):
@@ -135,3 +130,5 @@ class ValidationPlanAction(ActionBase):
 
         finally:
             self.hora_fin()
+
+

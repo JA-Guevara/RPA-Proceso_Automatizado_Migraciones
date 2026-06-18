@@ -2,7 +2,7 @@ from core.action_base.action_base import ActionBase
 
 class BuscarLineaAction(ActionBase):
     def __init__(self, variables_base, contexto):
-        super().__init__(variables_base, contexto, flow_name="buscar_linea", executor_type="desktop")
+        super().__init__(variables_base, contexto, flow_name="buscar_linea")
 
     def ejecutar(self, modo="entrar"):  
         self.logger.info("🚀 Iniciando BuscarLineaAction...")
@@ -12,22 +12,24 @@ class BuscarLineaAction(ActionBase):
                 self.logger.info("⬅️ Modo salir: ejecutando bloque salir_buscar_linea")
                 self.executor.ejecutar_bloque("salir_buscar_linea")
                 return True
-            
+
             self.logger.info("➡️ Modo entrar: ejecutando bloque flow")
             self.executor.ejecutar_bloque("flow")
-                
+
             if self.contexto.get("existe_error_qvantel", False):
                 id_sharepoint = self.contexto.get("id_sharepoint")
                 self.contexto["mensaje_memo"] = f"Baja observada - ID solicitud: {id_sharepoint}"
                 self.contexto["baja_realizada"] = "Baja Observada"
                 self.registrar_observacion("La cuenta esta migrada a Qvantel.")
                 return False
-            
+
             return True 
 
         except Exception as e:
             self.manejar_excepcion(e)
             raise  
-            
+
         finally:
             self.hora_fin()
+
+

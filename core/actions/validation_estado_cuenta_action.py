@@ -5,8 +5,7 @@ from core.action_base.action_base import ActionBase
 class ValidationEstadoCuentaAction(ActionBase):
     def __init__(self, variables_base, contexto):
         super().__init__(variables_base, contexto,
-                         flow_name="validation_estado_cuenta",
-                         executor_type="desktop")
+                         flow_name="validation_estado_cuenta")
         self.executor._action_extraer_validar_estado = self.extraer_validar_estado
 
     def ejecutar(self):
@@ -19,7 +18,6 @@ class ValidationEstadoCuentaAction(ActionBase):
             estado = self.contexto.get("estado_extraido_rpa", "").strip().upper()
             id_sharepoint = self.contexto.get("id_sharepoint")
 
-            # 🚫 Error previo en extracción
             if self.contexto.get("error_de_estado"):
                 self.logger.warning("🚫 Error al detectar el estado → devolverá False.")
                 self.contexto.update({
@@ -29,7 +27,6 @@ class ValidationEstadoCuentaAction(ActionBase):
                 self.registrar_observacion("Error al detectar el estado de cuenta válido.")
                 return False
 
-            # 1️⃣ Port Out (PO)
             if estado == "PO":
                 self.logger.info("📌 Línea con Port Out: registrar desestimación y cerrar con reclamo.")
                 self.contexto.update({
@@ -40,9 +37,8 @@ class ValidationEstadoCuentaAction(ActionBase):
                     "mensaje_memo": f"Baja observada - ID solicitud: {id_sharepoint}"
                 })
                 self.registrar_observacion("Línea realizó Port Out")
-                return False  # 🔹 Debe cerrar con reclamo
+                return False
 
-            # 2️⃣ Portación en proceso (PP)
             elif estado == "PP":
                 self.logger.info("🚫 Línea en PP: cerrar con reclamo.")
                 self.contexto.update({
@@ -53,9 +49,8 @@ class ValidationEstadoCuentaAction(ActionBase):
                     "mensaje_memo": f"Baja observada - ID solicitud: {id_sharepoint}"
                 })
                 self.registrar_observacion("Línea se encuentra en proceso de portación")
-                return False  # 🔹 También reclamo
+                return False
 
-            # 3️⃣ PK (Pre-eliminación)
             elif estado == "PK":
                 self.logger.info("🔁 Línea en PK: ejecutando pre-eliminación")
                 self.executor.ejecutar_bloque("flow_pre-eliminacion")
@@ -66,7 +61,6 @@ class ValidationEstadoCuentaAction(ActionBase):
                 self.registrar_observacion("Pre-eliminación ejecutada.")
                 return True
 
-            # 4️⃣ Estado distinto de AC
             elif estado != "AC":
                 self.logger.info("🔁 Estado distinto de AC: ejecutando validación de cambio de estado (validation2)")
                 self.executor.ejecutar_bloque("validation2")
@@ -90,7 +84,6 @@ class ValidationEstadoCuentaAction(ActionBase):
                     self.registrar_observacion("")
                     return True
 
-            # 5️⃣ Estado AC (activo)
             else:
                 self.logger.info("✅ Estado AC: continúa validación siguiente.")
                 self.contexto.update({
@@ -153,3 +146,5 @@ class ValidationEstadoCuentaAction(ActionBase):
             self.logger.error(f"❌ Error al extraer estado de cuenta: {e}", exc_info=True)
             self.contexto["error_de_estado"] = True
             raise
+
+

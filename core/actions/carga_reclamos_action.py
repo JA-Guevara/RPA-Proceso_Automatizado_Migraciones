@@ -2,7 +2,7 @@ from core.action_base.action_base import ActionBase
 
 class CargaReclamosAction(ActionBase):
     def __init__(self, variables_base, contexto):
-        super().__init__(variables_base, contexto, flow_name="carga_reclamos", executor_type="desktop")
+        super().__init__(variables_base, contexto, flow_name="carga_reclamos")
 
     def ejecutar(self):
         self.logger.info("🚀 Iniciando carga_reclamos action...")
@@ -23,3 +23,5 @@ class CargaReclamosAction(ActionBase):
 
         finally:
             self.hora_fin()
+
+

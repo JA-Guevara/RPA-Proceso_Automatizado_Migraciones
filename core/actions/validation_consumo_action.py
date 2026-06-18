@@ -3,17 +3,12 @@ from core.action_base.action_base import ActionBase
 
 
 class ValidationConsumoAction(ActionBase):
-    """
-    Valida si existen facturas pendientes en la línea actual.
-    Actualiza el contexto con los resultados y retorna False si hay deuda.
-    """
 
     def __init__(self, variables_base: dict, contexto: dict):
         super().__init__(
             variables_base,
             contexto,
-            flow_name="validation_consumo",
-            executor_type="desktop"
+            flow_name="validation_consumo"
         )
         self.executor._action_extraer_validar_consumo = self.extraer_validar_consumo
 
@@ -25,7 +20,7 @@ class ValidationConsumoAction(ActionBase):
             self.executor.ejecutar_bloque("validation")
             cantidad = int(self.contexto.get("facturas_pendientes_rpa", 0))
             id_sharepoint = self.contexto.get("id_sharepoint")
-            
+
             if cantidad > 0:
                 observacion = f"Línea presenta {cantidad} factura(s) pendientes de pago"
                 deuda = "Con Deuda"
@@ -64,11 +59,11 @@ class ValidationConsumoAction(ActionBase):
             self.hora_fin()
 
     def extraer_validar_consumo(self, paso):
-
         self.logger.info("🔍 Ejecutando acción personalizada: extraer_validar_consumo")
 
         try:
             ruta, nombre = self.executor._resolver_imagen(paso.get("target"))
+
             self.clicker.hacer_clic(
                 target=ruta,
                 offset_x=paso.get("offset_x", 0),
@@ -77,21 +72,29 @@ class ValidationConsumoAction(ActionBase):
                 nombre_logico=nombre,
                 usar_imagen=paso.get("usar_imagen", True),
                 raise_error=paso.get("raise_error", True),
-                transitorio=paso.get("transitorio", False)
+                transitorio=paso.get("transitorio", False),
             )
 
-            # 🔹 Copiar texto de la interfaz
             self.app_tools.esperar(0.2)
             self.app_tools.presionar_tecla_real("up")
-            self.app_tools.presionar_combinacion_real("ctrl", "c")
-            self.app_tools.esperar(0.2)
 
-            texto = pyperclip.paste().strip()
+            texto = self.basic_tools.copiar_texto_actual(
+                seleccionar_todo=False,
+                limpiar=True,
+                mayusculas=False,
+                usar_real=True,
+                timeout=12.0,
+            )
+
+            if not texto:
+                self.logger.warning("⚠️ No se pudo capturar texto para validar consumo.")
+                self.contexto["facturas_pendientes_rpa"] = 0
+                return
+
             lineas = texto.splitlines()
             pendientes = [l for l in lineas if "pendiente" in l.lower()]
             cantidad = len(pendientes)
 
-            # Guardar en contexto
             self.contexto["facturas_pendientes_rpa"] = cantidad
             self.logger.info(f"📋 Facturas pendientes detectadas: {cantidad}")
 

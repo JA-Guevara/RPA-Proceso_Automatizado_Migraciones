@@ -7,7 +7,6 @@ logger = logging.getLogger(__name__)
 class FlowLoader:
     @staticmethod
     def load(flow_name: str) -> dict | None:
-        # Definimos la ruta dentro del método estático
         folder_path = Path(__file__).resolve().parent.parent.parent / "flows"
         file_path = folder_path / f"{flow_name}.json"
 
@@ -23,3 +22,5 @@ class FlowLoader:
         except json.JSONDecodeError as e:
             logger.error(f"❌ Error al decodificar JSON en {file_path}: {e}")
             return None
+
+

@@ -2,14 +2,13 @@ from core.action_base.action_base import ActionBase
 
 class EliminacionCreacionAction(ActionBase):
     def __init__(self, variables_base, contexto):
-        super().__init__(variables_base, contexto, flow_name="eliminacion_creacion", executor_type="desktop")
+        super().__init__(variables_base, contexto, flow_name="eliminacion_creacion")
 
     def ejecutar(self):
         self.logger.info("🚀 Iniciando eliminacion_creacion action...")
         self.hora_inicio()
 
         try:
-            # Bloque principal del flujo
             self.executor.ejecutar_bloque("flow")
             self.contexto["servicios_asignados_rpa"] = (
                 self.contexto.get("servicios_asignados_rpa", "") + "Eliminacion y Creacion de cuenta, "
@@ -26,3 +25,5 @@ class EliminacionCreacionAction(ActionBase):
 
         finally:
             self.hora_fin()
+
+

@@ -1,5 +1,6 @@
 import logging
 from shared.tools.time_tools import TimeTools
+from shared.tools.exceptions import RPAExceptions
 from infrastructure.database.adapters.estado_migracion_adapter import EstadoSQLAdapter
 from infrastructure.database.adapters.migraciones_adapter import MigracionesSQLAdapter
 
@@ -58,7 +59,7 @@ class MigracionActions:
             if self.contexto.get("existe_error_qvantel", False):
                 self.logger.warning("⚠️ Error QVANTEL detectado — cierre inmediato.")
                 self._cerrar_con_reclamo_inicial()
-                return False
+                return True
 
 
             if not self._validar_plan_inicial():
@@ -81,11 +82,11 @@ class MigracionActions:
                 if estado in ("PO", "PP") or error_cambio_estado:
                     self.logger.warning("⚠️ Estado inválido o error detectado, cerrando con reclamo.")
                     return self._cerrar_con_reclamo()
-                
+
 
             if not self._validar_forma_pago():
                 return self._cerrar_con_reclamo()
-            
+
             if not self._captura_de_datos():
                 return self._cerrar_con_reclamo()
 
@@ -98,13 +99,13 @@ class MigracionActions:
             if tipo == "Migración de Post Pago a Pre Pago":
                 self.logger.info("🚀 Iniciando Migración de Post Pago a Pre Pago")
                 if not self._migracion_post_pre3():
-                    return False  
-                
+                    return True
+
             elif tipo == "Cambio de Post Pago a Pre Pago R":
                 self.logger.info("🚀 Iniciando Migración de Post Pago a Pre Pago")
                 if not self._migracion_post_preR():
-                    return False
-            
+                    return True
+
             if not self._validar_plan_final():
                 validacion_exitosa = self.contexto.get("validacion_exitosa", False)
                 plan_valido = self.contexto.get("plan_valido", False)
@@ -118,19 +119,23 @@ class MigracionActions:
             return self._finalizar_ok()
 
 
+        except RPAExceptions.ErrorBaseException:
+            raise
         except Exception as e:
-            self.logger.error(f"❌ Error en MigracionActions: {e}", exc_info=True)
-            return self._cerrar_con_reclamo()
+            self.logger.error(f"❌ Error no controlado en MigracionActions: {e}", exc_info=True)
+            raise RPAExceptions.FlujoException(
+                f"{e.__class__.__name__}: {e}", contexto=self.contexto
+            )
 
     def _buscar_linea_entrar(self) -> bool:
         return BuscarLineaAction(self.variables_base, self.contexto).ejecutar(modo="entrar")
-    
+
     def _captura_de_datos(self) -> bool:
         return CapturaDatosAction(self.variables_base, self.contexto).ejecutar()
 
     def _validar_plan_inicial(self) -> bool:
         return ValidationPlanAction(self.variables_base, self.contexto).ejecutar(modo="extraer_inicial")
-    
+
     def _validar_plan_final(self) -> bool:
         return ValidationPlanAction(self.variables_base, self.contexto).ejecutar(modo="extraer_final")
 
@@ -151,10 +156,11 @@ class MigracionActions:
 
     def _migracion_post_pre3(self) -> bool:
         SaldoCoreBalanceAction(self.variables_base, self.contexto).ejecutar()
+        self.contexto["migracion_ejecutada"] = True
         PasoPostAPreAction(self.variables_base, self.contexto).ejecutar()
         if self.contexto.get("linea_error_migracion", False):
             self._cerrar_con_reclamo()
-            return False 
+            return False
         EliminacionServiciosAction(self.variables_base, self.contexto).ejecutar()
         EliminacionCreacionAction(self.variables_base, self.contexto).ejecutar()
         return True
@@ -163,6 +169,7 @@ class MigracionActions:
     def _migracion_post_preR(self) -> bool:
         ValidationIdctlActualAction(self.variables_base, self.contexto).ejecutar()
         VerificarServicioLdi_900Action(self.variables_base, self.contexto).ejecutar()
+        self.contexto["migracion_ejecutada"] = True
         CrearServicioFflteAction(self.variables_base, self.contexto).ejecutar()
         ProgramarCambioAction(self.variables_base, self.contexto).ejecutar()
         return True
@@ -172,9 +179,9 @@ class MigracionActions:
         TimeTools.marcar_hora_fin(self.contexto, self.__class__.__name__, self.logger)
         self.estado_adapter.actualizar_estado_migracion(self.contexto)
         self.migracion_adapter.registrar_detalle(self.contexto)
-    
+
         return self._buscar_linea_salir()
-    
+
     def _cerrar_con_reclamo_inicial(self) -> bool:
         TimeTools.marcar_hora_fin(self.contexto, self.__class__.__name__, self.logger)
         self.estado_adapter.actualizar_estado_migracion(self.contexto)
@@ -182,30 +189,32 @@ class MigracionActions:
         return True
 
     def _buscar_linea_salir(self) -> bool:
-        BuscarLineaAction(self.variables_base, self.contexto).ejecutar(modo="salir")
+        try:
+            BuscarLineaAction(self.variables_base, self.contexto).ejecutar(modo="salir")
+        except Exception as e:
+            self.logger.error(f"⚠️ Falla técnica al salir de la línea (registro ya persistido): {e}")
+            self._anexar_observacion(f"Falla técnica al salir de pantalla: {e}")
         return True
 
     def _finalizar_ok(self) -> bool:
-        CargaReclamosAction(self.variables_base, self.contexto).ejecutar()
-        self._derivacion_sms()
+        try:
+            CargaReclamosAction(self.variables_base, self.contexto).ejecutar()
+        except Exception as e:
+            self.logger.error(f"⚠️ Falla técnica en carga de reclamo post-migración: {e}", exc_info=True)
+            self._anexar_observacion(f"Migración OK; falló carga de reclamo: {e}")
+
+        try:
+            self._derivacion_sms()
+        except Exception as e:
+            self.logger.error(f"⚠️ Falla técnica en derivación SMS post-migración: {e}", exc_info=True)
+            self.contexto["notificacion_baja_rpa"] = False
+            self._anexar_observacion(f"Migración OK; falló derivación SMS: {e}")
+
         TimeTools.marcar_hora_fin(self.contexto, self.__class__.__name__, self.logger)
         self.estado_adapter.actualizar_estado_migracion(self.contexto)
         self.migracion_adapter.registrar_detalle(self.contexto)
         return self._buscar_linea_salir()
-    
-    def _procesar_error(self, tipo_error: str, mensaje: str) -> bool:
-        id_rpa = self.contexto.get("id_sharepoint", "N/A")
-        self.logger.exception(f"🟥 {mensaje}")
-        self.contexto.update({
-            "estado_final": tipo_error,
-            "observaciones_rpa": mensaje,
-            "requiere_notificacion": True,
-            "requiere_registro_excel": True
-        })
-        try:
-            self.estado_adapter.actualizar_estado_migracion(self.contexto)
-            self.migracion_adapter.registrar_detalle(self.contexto)
-        except Exception as db_err:
-            self.logger.error(f"⚠️ Error al registrar en base de datos tras fallo: {db_err}", exc_info=True)
-        self.logger.error(f"❌ Proceso fallido en ID RPA {id_rpa} → {tipo_error}")
-        return False
+
+    def _anexar_observacion(self, mensaje: str):
+        previa = (self.contexto.get("mensaje_observacion_rpa") or "").strip()
+        self.contexto["mensaje_observacion_rpa"] = f"{previa} | {mensaje}" if previa else mensaje

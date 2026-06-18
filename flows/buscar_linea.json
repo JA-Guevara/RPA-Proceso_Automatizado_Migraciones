@@ -4,7 +4,7 @@
   "flow": [
     { "action": "wait", "wait_time": 3},
 
-    { "action": "buscar_y_seleccionar", "target": {"referencia": "buscar_linea.busqueda_button", "imagenes": ["buscar_linea.inicial_busqueda"],"key_contexto": "existe_busqueda","transitorio": true},"clicks": 1,"max_intentos": 1},
+    { "action": "buscar_y_seleccionar", "target": {"referencia": "buscar_linea.busqueda_button", "imagenes": ["buscar_linea.busqueda_button"],"key_contexto": "existe_busqueda","transitorio": true},"clicks": 1,"max_intentos": 1},
 
     { "action": "click_y_escribir", "target": "buscar_linea.nro_linea_field", "value": "$nro_linea", "offset_x": 80,"clicks": 1},
     { "action": "click", "target": "buscar_linea.procesar_button","clicks": 1},

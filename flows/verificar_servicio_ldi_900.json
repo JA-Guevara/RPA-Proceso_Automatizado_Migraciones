@@ -5,6 +5,7 @@
     { "action": "wait", "wait_time": 2},
     { "action": "press_key", "target": "tab" },
     { "action": "click", "target": "varificar_crear_servicios.servicios_button","clicks": 1 },
+            { "action": "wait", "wait_time": 1},
     { "action": "click", "target": "varificar_crear_servicios.servicio_column","clicks": 2 ,"transitorio": true},
     { "action": "buscar_y_seleccionar_servicio", "target": {"referencia": "varificar_crear_servicios.servicio_column", "imagenes": ["varificar_crear_servicios.LDL_LDN_900_option_a","varificar_crear_servicios.LDL_LDN_900_option_b"],"key_contexto": "existe_LDI_900","transitorio": true},"clicks": 1,"max_intentos": 2}
 
@@ -12,16 +13,19 @@
   
   "flow": [
     { "action": "click", "target": "varificar_crear_servicios.edicion_servicios_icon","clicks": 1 },
+        { "action": "wait", "wait_time": 1},
     { "action": "click", "target": "varificar_crear_servicios.servicio_column","clicks": 2 ,"transitorio": true},
     { "action": "buscar_y_seleccionar_servicio", "target": {"referencia": "varificar_crear_servicios.servicio_column", "imagenes": ["varificar_crear_servicios.LDL_LDN_900_option_a2","varificar_crear_servicios.LDL_LDN_900_option_b2"],"key_contexto": "existe_sub_LDI_900","transitorio": true},"clicks": 1,"max_intentos": 5},
     { "action": "click", "target": "varificar_crear_servicios.eliminar_servicios_icon","clicks": 1 },
+        { "action": "wait", "wait_time": 1},
     { "action": "click", "target": "varificar_crear_servicios.suprimir_button","clicks": 1 },
+        { "action": "wait", "wait_time": 1},
     { "action": "click", "target": "varificar_crear_servicios.yes_button","clicks": 1 }
 
 
   ],
 
   "reboot_validation": [
-    { "action": "press_key", "target": "esc", "repeticiones": 5 }
+    { "action": "press_key", "target": "esc", "repeticiones": 2 }
   ]
 }

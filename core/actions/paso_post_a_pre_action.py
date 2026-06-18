@@ -2,17 +2,15 @@ from core.action_base.action_base import ActionBase
 
 class PasoPostAPreAction(ActionBase):
     def __init__(self, variables_base, contexto):
-        super().__init__(variables_base, contexto, flow_name="paso_post_a_pre", executor_type="desktop")
+        super().__init__(variables_base, contexto, flow_name="paso_post_a_pre")
 
     def ejecutar(self):
         self.logger.info("🚀 Iniciando paso_post_a_pre action...")
         self.hora_inicio()
 
         try:
-            # 🧩 PASO 1: Validación inicial
             self.executor.ejecutar_bloque("validation")
 
-            # ✅ CASO 1: Sin errores → continuar con el flujo normal
             if not self.contexto.get("existe_error", False):
                 self.executor.ejecutar_bloque("flow_post_a_pre")
                 return True
@@ -27,7 +25,6 @@ class PasoPostAPreAction(ActionBase):
                 self.executor.ejecutar_bloque("reboot_validation")
                 self.executor.ejecutar_bloque("flow_desbloqueo")
 
-                # Reintento tras desbloqueo
                 self.logger.info("🔄 Reintentando validación y flujo post a pre...")
                 self.executor.ejecutar_bloque("validation")
                 self.executor.ejecutar_bloque("flow_post_a_pre")
@@ -44,7 +41,6 @@ class PasoPostAPreAction(ActionBase):
 
                 return False
 
-            # ❌ CUALQUIER OTRO ERROR → cierre con reclamo
             self.logger.info("📝 Error distinto a bloqueo. Reiniciando validación...")
             self.executor.ejecutar_bloque("reboot_validation")
             self.contexto["linea_error_migracion"] = True
@@ -52,7 +48,7 @@ class PasoPostAPreAction(ActionBase):
             self.contexto["baja_realizada"] = "Baja Observada"
             self.registrar_observacion(f"La baja no realizada — error: {mensaje_error}")
 
-            return False  # 👈 ERROR → debe cortar el proceso, NO continuar
+            return False
 
         except Exception as e:
             self.manejar_excepcion(e)
@@ -64,3 +60,5 @@ class PasoPostAPreAction(ActionBase):
 
         finally:
             self.hora_fin()
+
+

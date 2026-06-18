@@ -2,14 +2,13 @@ from core.action_base.action_base import ActionBase
 
 class ProgramarCambioAction(ActionBase):
     def __init__(self, variables_base, contexto):
-        super().__init__(variables_base, contexto, flow_name="programar_cambio", executor_type="desktop")
+        super().__init__(variables_base, contexto, flow_name="programar_cambio")
 
     def ejecutar(self):
         self.logger.info("🚀 Iniciando programar_cambio action...")
         self.hora_inicio()
 
         try:
-            # 🔹 Paso 1: validación inicial
             self.executor.ejecutar_bloque("validation")
 
             existe_error = self.executor.contexto.get("existe_error", False)
@@ -19,7 +18,7 @@ class ProgramarCambioAction(ActionBase):
                 self.logger.info("✅ Validación exitosa, ejecutando flujo post a pre...")
                 self.executor.ejecutar_bloque("flow_post_a_pre")
                 return True
-            
+
             self.contexto["existe_error"] = True
             self.contexto["mensaje_error"] = mensaje_error
 
@@ -50,3 +49,5 @@ class ProgramarCambioAction(ActionBase):
 
         finally:
             self.hora_fin()
+
+

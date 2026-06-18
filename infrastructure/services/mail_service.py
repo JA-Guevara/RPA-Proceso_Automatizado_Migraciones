@@ -8,7 +8,6 @@ from config.config import EnvConfig
 logger = logging.getLogger(__name__)
 
 class MailService:
-    """📧 Servicio simplificado y robusto de envío de correos para el RPA."""
 
     def __init__(self, variables_base: dict = None):
         self.host = EnvConfig.MAIL_HOST
@@ -19,7 +18,6 @@ class MailService:
         self.use_tls = True
         self.variables_base = variables_base or {}
 
-        # 🔹 Estructura preparada por si en el futuro se requiere enviar por tipo
         self.mail_map = {
             "ERROR_LOGIN": EnvConfig.MAIL_DEFAULT,
             "ERROR_GENERAL": EnvConfig.MAIL_DEFAULT,
@@ -38,7 +36,6 @@ class MailService:
         tipo_error: str = None,
         contexto: dict = None
     ):
-        # 🔹 Siempre usa default, pero mantiene compatibilidad futura
         if destinatarios:
             to_list = self._parse_recipients(destinatarios)
         else:
@@ -92,3 +89,5 @@ class MailService:
                 logger.info(f"📧 Correo enviado exitosamente → {', '.join(destinatarios)}")
         except Exception as e:
             logger.error(f"❌ Error enviando correo: {e}", exc_info=True)
+
+

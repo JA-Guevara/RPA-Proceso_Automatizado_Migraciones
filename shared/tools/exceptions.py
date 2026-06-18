@@ -1,5 +1,5 @@
 class RPAExceptions:
-    
+
     class ErrorBaseException(Exception):
         tipo = "generico"
         env_key = "MAIL_DEFAULT"
@@ -13,7 +13,6 @@ class RPAExceptions:
         def __str__(self):
             return self.mensaje
 
-    # NIVELES PRINCIPALES
     class InterfazException(ErrorBaseException):
         tipo = "interfaz"
         env_key = "MAIL_INTERFAZ"
@@ -29,9 +28,8 @@ class RPAExceptions:
     class ComunicacionException(ErrorBaseException):
         tipo = "comunicacion"
         env_key = "MAIL_COMUNICACION"
-        
 
-    # SUBCATEGORÍAS DE INTERFAZ
+
     class ClickException(InterfazException):
         tipo = "click"
     class ImagenNoEncontradaException(InterfazException):
@@ -40,22 +38,21 @@ class RPAExceptions:
         tipo = "region_no_encontrada"
     class EntradaTextoException(InterfazException):
         tipo = "entrada_texto"
-        
 
-    # SUBCATEGORÍAS DE LOGIN
+
     class SesionInvalidaException(LoginException):
         tipo = "sesion_invalida"
     class UsuarioBloqueadoException(LoginException):
         tipo = "usuario_bloqueado"
     class ContrasenaIncorrectaException(LoginException):
         tipo = "contrasena_incorrecta"
-        
 
 
-    # SUBCATEGORÍAS DE COMUNICACIÓN
     class ConexionFallidaException(ComunicacionException):
         tipo = "conexion_fallida"
     class ServicioNoDisponibleException(ComunicacionException):
         tipo = "servicio_no_disponible"
     class TiempoEsperaExcedidoException(ComunicacionException):
         tipo = "timeout"
+
+

@@ -1,212 +1,211 @@
-import pyautogui
-import time
-import gc
-import logging
-from typing import Optional, Tuple
-from typing import Union
-from shared.tools.region_locator import RegionLocator
-from shared.tools.app_tools import AppTools
-from shared.tools.exceptions import RPAExceptions
 
+import logging
+import time
+from typing import Optional, Tuple, Union
+
+import pyautogui
+
+from shared.tools.app_tools import AppTools
 from shared.tools.basic_tools import BasicTools
+from shared.tools.exceptions import RPAExceptions
+from shared.tools.image_locator import ImageLocator, default_locator
 
 logger = logging.getLogger(__name__)
 
+
 class ClickTools:
-    def __init__(self, timeout: int = 10, confidence: float = 0.9):
+    def __init__(self, timeout: int = 10, confidence: float = 0.9, locator: ImageLocator = None):
         self.timeout = timeout
         self.confidence = confidence
-        self.region_locator = RegionLocator()
+        self.locator = locator or default_locator
         self.app_tools = AppTools()
         self.basic_tools = BasicTools()
 
-    def _localizar_para_click(self, image_path: str, nombre_logico: str, t_region: float = 3.0):
-        try:
-            region = self.region_locator.obtener_region(nombre_logico)
-            if region:
-                region_box = (region['x'], region['y'], region['width'], region['height'])
-                inicio = time.time()
-                while time.time() - inicio < t_region:
-                    try:
-                        pos = pyautogui.locateOnScreen(image_path, confidence=self.confidence, region=region_box)
-                        if pos:
-                            return (pos.left, pos.top, pos.width, pos.height)
-                    except Exception:
-                        pass
-
-            inicio_total = time.time()
-            while time.time() - inicio_total < self.timeout:
-                try:
-                    pos = pyautogui.locateOnScreen(image_path, confidence=self.confidence)
-                    if pos:
-                        nueva_region = (pos.left, pos.top, pos.width, pos.height)
-                        self.region_locator.guardar_region(nombre_logico, nueva_region)
-                        logger.info(f"🔁 Región actualizada para '{nombre_logico}': {nueva_region}")
-                        return nueva_region
-                except Exception:
-                    pass
-            return None
-
-        except Exception as e:
-            logger.error(f"❌ Error en _localizar_para_click: {e}", exc_info=True)
-            return None
-
     def hacer_clic(
-    self,
-    target: Union[str, tuple],
-    clicks: int = 1,
-    offset_x: int = 0,
-    offset_y: int = 0,
-    usar_inicio: bool = False,
-    usar_imagen: bool = True,
-    raise_error: bool = True,
-    nombre_logico: str = None,
-    t_region: float = 3.0,
-    transitorio: bool = False,
-    wait_after_click: float = 0.5,       
-    wait_timeout: float = 30.0            
-) -> bool:
+        self,
+        target: Union[str, tuple],
+        clicks: int = 1,
+        offset_x: int = 0,
+        offset_y: int = 0,
+        usar_inicio: bool = False,
+        usar_imagen: bool = True,
+        raise_error: bool = True,
+        nombre_logico: str = None,
+        t_region: float = None,
+        transitorio: bool = False,
+        wait_after_click: float = 0.5,
+        wait_timeout: float = None,
+        timeout: float = None,
+    ) -> bool:
         try:
             x = y = None
 
             if usar_imagen and isinstance(target, str):
                 nombre_logico = nombre_logico or target
+                timeout_efectivo = timeout if timeout is not None else (
+                    self.locator.timeout_transitorio if transitorio else self.timeout
+                )
 
-                if transitorio:
-                    logger.info(f"🔍 Buscando imagen (modo transitorio) '{nombre_logico}'...")
-                    caja = pyautogui.locateOnScreen(target, confidence=self.confidence)
-                    if not caja:
-                        logger.warning(f"❌ No se encontró imagen transitoria: {target}")
+                caja = self.locator.localizar(
+                    target,
+                    nombre_logico=nombre_logico,
+                    timeout=timeout_efectivo,
+                    confidence=self.confidence,
+                    log_miss_como_warning=not transitorio,
+                )
+
+                if not caja:
+                    if transitorio or not raise_error:
+                        logger.info(f"⏭️ Paso opcional sin imagen: '{nombre_logico}' → se omite.")
                         return False
-                else:
-                    caja = self.region_locator.buscar_o_actualizar_region(
-                        image_path=target,
-                        nombre_logico=nombre_logico,
-                        confidence=self.confidence,
-                        t_region=t_region,
-                        t_total=self.timeout
+
+                    raise RPAExceptions.ImagenNoEncontradaException(
+                        f"Elemento requerido no encontrado: '{nombre_logico}' ({target})"
                     )
-                    if not caja:
-                        logger.warning(f"❌ No se encontró imagen: {target} [{nombre_logico}]")
-                        return False
 
                 left, top, width, height = caja
-                x = left if usar_inicio else left + width // 2
-                y = top if usar_inicio else top + height // 2
+
+                if usar_inicio:
+                    x = left
+                    y = top
+                else:
+                    x = left + width // 2
+                    y = top + height // 2
+
+                x += offset_x
+                y += offset_y
 
             elif isinstance(target, tuple) and len(target) == 2:
-                x, y = target
-                if not nombre_logico:
-                    nombre_logico = "coordenadas"
+                x = target[0] + offset_x
+                y = target[1] + offset_y
+                nombre_logico = nombre_logico or "coordenadas"
+
             else:
-                logger.error("⚠️ Target inválido: debe ser ruta de imagen o tupla (x, y).")
+                msg = f"Target inválido en hacer_clic: {target!r} (imagen o tupla (x, y))."
+                if raise_error and not transitorio:
+                    raise RPAExceptions.InterfazException(msg)
+
+                logger.error(f"⚠️ {msg}")
                 return False
 
-            x += offset_x
-            y += offset_y
+            logger.info(f"🖱️ Clic en '{nombre_logico}' ({x},{y}) clicks={clicks}")
+            self._click_estable(x, y, clicks=clicks)
 
-            logger.info(f"🗉 Haciendo clic en '{nombre_logico}' ({x},{y}) clicks={clicks}")
-            pyautogui.click(x, y, clicks=clicks)
+            if wait_after_click and wait_after_click > 0:
+                time.sleep(wait_after_click)
 
-            start = time.time()
-            while time.time() - start < wait_timeout:
-                break
-
-            gc.collect()
             return True
 
         except RPAExceptions.ErrorBaseException:
             raise
+
         except Exception as e:
-            msg = f"💥 Error inesperado en hacer_clic(): {e}"
-            logger.error(msg, exc_info=True)
+            msg = f"Error inesperado en hacer_clic('{nombre_logico or target}'): {e}"
+            logger.error(f"💥 {msg}", exc_info=True)
             raise RPAExceptions.InterfazException(msg)
 
-    def clic_y_escribir(self, target: Union[str, tuple], texto: str, delay: float = 0,
-                        offset_x: int = 0, offset_y: int = 0, clicks: int = 1,
-                        nombre_logico: str = None, transitorio: bool = False) -> bool:
-        try:
-            clic_realizado = self.hacer_clic(
-                target,
-                offset_x=offset_x,
-                offset_y=offset_y,
-                clicks=clicks,
-                usar_imagen=isinstance(target, str),
-                raise_error=True,
-                nombre_logico=nombre_logico,
-                transitorio=transitorio
-            )
-            if not clic_realizado:
-                return False
+    def clic_y_escribir(
+        self,
+        target: Union[str, tuple],
+        texto: str,
+        delay: float = 0,
+        offset_x: int = 0,
+        offset_y: int = 0,
+        clicks: int = 1,
+        nombre_logico: str = None,
+        transitorio: bool = False,
+        raise_error: bool = True,
+        timeout: float = None,
+    ) -> bool:
+        clic_realizado = self.hacer_clic(
+            target,
+            offset_x=offset_x,
+            offset_y=offset_y,
+            clicks=clicks,
+            usar_imagen=isinstance(target, str),
+            raise_error=raise_error,
+            nombre_logico=nombre_logico,
+            transitorio=transitorio,
+            timeout=timeout,
+        )
 
-            return self.basic_tools.escribir_texto_clipboard(
-                texto,
-                delay=delay,
-            )
-
-        except Exception as e:
-            logger.error(f"❌ Error en clic_y_escribir: {e}", exc_info=True)
+        if not clic_realizado:
             return False
 
-    def clic_y_escribir_tradicional(self, target: Union[str, tuple], texto: str, delay: float = 0,
-                                     offset_x: int = 0, offset_y: int = 0, clicks: int = 1, nombre_logico: str = None, transitorio: bool = False) -> bool:
-        try:
-            clic_realizado = self.hacer_clic(
-                target, offset_x=offset_x, offset_y=offset_y, clicks=clicks,
-                usar_imagen=isinstance(target, str), raise_error=True, nombre_logico=nombre_logico, transitorio=transitorio)
-            if not clic_realizado:
-                return False
-            self.basic_tools.escribir_texto_simulado(texto, delay=delay)
-            return True
-        except Exception as e:
-            logger.error(f"Error en clic_y_escribir_tradicional: {e}", exc_info=True)
+        return self.basic_tools.escribir_texto_clipboard(texto, delay=delay)
+
+    def clic_y_escribir_tradicional(
+        self,
+        target: Union[str, tuple],
+        texto: str,
+        delay: float = 0,
+        offset_x: int = 0,
+        offset_y: int = 0,
+        clicks: int = 1,
+        nombre_logico: str = None,
+        transitorio: bool = False,
+        raise_error: bool = True,
+        timeout: float = None,
+    ) -> bool:
+        clic_realizado = self.hacer_clic(
+            target,
+            offset_x=offset_x,
+            offset_y=offset_y,
+            clicks=clicks,
+            usar_imagen=isinstance(target, str),
+            raise_error=raise_error,
+            nombre_logico=nombre_logico,
+            transitorio=transitorio,
+            timeout=timeout,
+        )
+
+        if not clic_realizado:
             return False
 
+        return self.basic_tools.escribir_texto_simulado(texto, delay=delay)
 
-    def buscar_imagen(self, target: str, nombre_logico: Optional[str] = None,
-                  usar_inicio: bool = False, raise_error: bool = True,
-                  timeout: float = None, retry_delay: float = 0.2,
-                  transitorio: bool = False, confidence: Optional[float] = None
-                 ) -> Optional[Tuple[int, int, int, int]]:
-        try:
-            nombre_logico = nombre_logico or target
-            imagen_path = target
-            timeout = timeout if timeout is not None else self.timeout
-            confianza = confidence if confidence is not None else self.confidence  # ✅ clave
-            start_time = time.time()
+    def buscar_imagen(
+        self,
+        target: str,
+        nombre_logico: Optional[str] = None,
+        usar_inicio: bool = False,
+        raise_error: bool = True,
+        timeout: float = None,
+        retry_delay: float = 0.2,
+        transitorio: bool = False,
+        confidence: Optional[float] = None,
+    ) -> Optional[Tuple[int, int, int, int]]:
+        nombre_logico = nombre_logico or target
+        timeout_efectivo = timeout if timeout is not None else (
+            self.locator.timeout_transitorio if transitorio else self.timeout
+        )
 
-            while time.time() - start_time < timeout:
-                try:
-                    region = self.region_locator.obtener_region(nombre_logico) if not transitorio else None
+        caja = self.locator.localizar(
+            target,
+            nombre_logico=nombre_logico,
+            timeout=timeout_efectivo,
+            confidence=confidence if confidence is not None else self.confidence,
+            poll_interval=retry_delay,
+            log_miss_como_warning=not transitorio,
+        )
 
-                    if region:
-                        region_box = (region['x'], region['y'], region['width'], region['height'])
-                        posicion = pyautogui.locateOnScreen(imagen_path, confidence=confianza, region=region_box)
-                    else:
-                        posicion = pyautogui.locateOnScreen(imagen_path, confidence=confianza)
+        if caja:
+            return caja
 
-                    if posicion:
-                        if not transitorio:
-                            nueva_region = (posicion.left, posicion.top, posicion.width, posicion.height)
-                            self.region_locator.guardar_region(nombre_logico, nueva_region)
-                            logger.info(f"📌 Región guardada para '{nombre_logico}': {nueva_region}")
-                        return (posicion.left, posicion.top, posicion.width, posicion.height)
+        if raise_error and not transitorio:
+            raise RPAExceptions.ImagenNoEncontradaException(
+                f"Imagen no encontrada al buscar: {nombre_logico}"
+            )
 
-                except Exception as e:
-                    logger.debug(f"⚠️ Error parcial al buscar imagen: {e}")
+        return None
 
-                self.app_tools.esperar(retry_delay)
+    def _click_estable(self, x: int, y: int, clicks: int = 1) -> None:
+        pyautogui.moveTo(x, y, duration=0.05)
 
-            # --- Si termina sin encontrar ---
-            msg = f"❌ Imagen no encontrada al buscar: {nombre_logico}"
-            logger.warning(msg)
-            if raise_error:
-                raise RPAExceptions.ImagenNoEncontradaException(msg)
-            return None
+        for _ in range(max(int(clicks), 1)):
+            pyautogui.mouseDown()
+            time.sleep(0.08)
+            pyautogui.mouseUp()
 
-        except RPAExceptions.ErrorBaseException:
-            raise
-        except Exception as e:
-            msg = f"💥 Error inesperado en buscar_imagen(): {e}"
-            logger.error(msg, exc_info=True)
-            raise RPAExceptions.InterfazException(msg)
+            if clicks > 1:
+                time.sleep(0.15)

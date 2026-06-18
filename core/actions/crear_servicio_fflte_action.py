@@ -3,8 +3,7 @@ from core.action_base.action_base import ActionBase
 class CrearServicioFflteAction(ActionBase):
     def __init__(self, variables_base, contexto):
         super().__init__(variables_base, contexto,
-                         flow_name="crear_servicio_fflte",
-                         executor_type="desktop")
+                         flow_name="crear_servicio_fflte")
 
     def ejecutar(self):
         self.logger.info("🚀 Iniciando crear_servicio_fflte action...")
@@ -58,3 +57,5 @@ class CrearServicioFflteAction(ActionBase):
 
         finally:
             self.hora_fin()
+
+

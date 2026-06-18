@@ -3,7 +3,7 @@ from core.action_base.action_base import ActionBase
 
 class ValidationIdctlActualAction(ActionBase):
     def __init__(self, variables_base, contexto):
-        super().__init__(variables_base, contexto, flow_name="validation_idctl_actual", executor_type="desktop")
+        super().__init__(variables_base, contexto, flow_name="validation_idctl_actual")
         self.executor._action_extraer_validar_plan_programado = self.extraer_validar_plan_programado
 
     def ejecutar(self):
@@ -11,7 +11,7 @@ class ValidationIdctlActualAction(ActionBase):
         self.hora_inicio()
         try:
             self.executor.ejecutar_bloque("validation")
-            
+
             idctl_actual = self.contexto.get("idctl_actual_rpa", "").strip().upper()
             self.logger.info(f"🔍 IDCTL detectada: '{idctl_actual}'")
 
@@ -32,7 +32,7 @@ class ValidationIdctlActualAction(ActionBase):
                 self.registrar_observacion("El Motivo de Registración en IDCTL es inválido para este proceso")
                 self.contexto["baja_realizada"] = "Baja Observada"
                 return False
-                
+
         except Exception as e:
             self.manejar_excepcion(e)
             try:
@@ -44,12 +44,14 @@ class ValidationIdctlActualAction(ActionBase):
 
         finally:
             self.hora_fin()
-            
+
 
     def extraer_validar_plan_programado(self, paso):
         self.logger.info("🔍 Ejecutando acción personalizada: extraer_validar_plan_programado")
+
         try:
             ruta, nombre = self.executor._resolver_imagen(paso.get("target"))
+
             self.clicker.hacer_clic(
                 target=ruta,
                 offset_x=paso.get("offset_x", 0),
@@ -58,27 +60,38 @@ class ValidationIdctlActualAction(ActionBase):
                 nombre_logico=nombre,
                 usar_imagen=paso.get("usar_imagen", True),
                 raise_error=paso.get("raise_error", True),
-                transitorio=paso.get("transitorio", False)
+                transitorio=paso.get("transitorio", False),
             )
-            self.app_tools.esperar(0.2)
+
+            self.app_tools.esperar(1)
             self.app_tools.presionar_tecla_real("up")
-            self.app_tools.presionar_combinacion_real("ctrl", "c")
-            self.app_tools.esperar(0.2)
-            
-            texto = pyperclip.paste().strip()
+            self.app_tools.presionar_tecla_real("up")
+
+            texto = self.basic_tools.copiar_texto_actual(
+                seleccionar_todo=False,
+                limpiar=True,
+                mayusculas=False,
+                usar_real=True,
+                timeout=12.0,
+            )
+
             self.logger.info(f"📋 Texto copiado (primeras 300 chars):\n{texto[:300]}...")
+
             lineas = texto.splitlines()
             pendiente_detectado = False
 
             for linea in lineas:
-                columnas = linea.split("\t") 
+                columnas = linea.split("\t")
+
                 if len(columnas) >= 5:
                     estado = columnas[4].strip().upper()
+
                     if "PENDIENTE" in estado:
                         pendiente_detectado = True
                         break
-                    
+
             self.contexto["existe_cambio_pendiente_rpa"] = pendiente_detectado
+
             if pendiente_detectado:
                 self.logger.warning("⚠️ Se encontró al menos un registro con estado 'Pendiente'")
             else:
@@ -88,5 +101,5 @@ class ValidationIdctlActualAction(ActionBase):
 
         except Exception as e:
             self.logger.error(f"❌ Error en extraer_validar_plan_programado: {e}", exc_info=True)
-            self.contexto["existCambioPendiente"] = False
+            self.contexto["existe_cambio_pendiente_rpa"] = False
             return False

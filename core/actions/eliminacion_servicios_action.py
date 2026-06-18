@@ -2,7 +2,7 @@ from core.action_base.action_base import ActionBase
 
 class EliminacionServiciosAction(ActionBase):
     def __init__(self, variables_base, contexto):
-        super().__init__(variables_base, contexto, flow_name="eliminacion_servicios", executor_type="desktop")
+        super().__init__(variables_base, contexto, flow_name="eliminacion_servicios")
 
     def ejecutar(self):
         self.logger.info("🚀 Iniciando eliminacion_servicios action...")
@@ -31,3 +31,5 @@ class EliminacionServiciosAction(ActionBase):
 
         finally:
             self.hora_fin()
+
+

@@ -49,10 +49,10 @@ Se retiró `WebExecutor` + intérprete JSON web. Las acciones web usan Playwrigh
 `BaseAction` concentra lo común (logger, `var()`, `hora_inicio/fin`, `manejar_excepcion`). Heredan `ActionBase` (desktop: carga flow + DesktopExecutor) y `WebActionBase` (web: solo lo común). Elimina la duplicación previa.
 
 ### D6 — `BrowserSession` + perfiles
-Ciclo de vida como configuración: `vida="registro"` (abre/usa/cierra por registro, ej. derivación) y `vida="sesion"` (navegador persistente en hilo + event loop propio, ej. escritorio web). Los perfiles de navegador (`browser_profiles.py`: REGISTRO, ESCRITORIO_WEB, KIOSK, BACKGROUND) centralizan `launch_args`/`no_viewport`/`ignore_https_errors`.
+Ciclo de vida como configuración: `vida="registro"` (abre/usa/cierra por registro, ej. derivación) y `vida="sesion"` (navegador persistente en hilo + event loop propio, ej. escritorio web). Los perfiles (`browser_profiles.py`: REGISTRO, ESCRITORIO_WEB, ESCRITORIO_WEB_FULLSCREEN, KIOSK, BACKGROUND) centralizan `launch_args`/`no_viewport`/`ignore_https_errors`/`fullscreen`/`permissions`. El escritorio web usa el perfil **FULLSCREEN** (pantalla completa por CDP, sin pulsar F11, para template matching 1:1) con permisos de portapapeles concedidos.
 
 ### D7 — `ConexionEscritorio` = infraestructura pura
-Responsable solo de: abrir RDP (mstsc) o abrir/reutilizar navegador Guacamole según `CONEXION_ESCRITORIO`, cerrar, y exponer `page` / `session` / `run()`. **No** hace login Guacamole, ni terminal, ni BCCS. La espera previa al flujo visual la da `esperar_ancla()` (imagen ancla en pantalla; si no hay `DESKTOP_ANCHOR_IMAGE`, cae a espera fija).
+Responsable solo de abrir/cerrar el escritorio según `CONEXION_ESCRITORIO` y exponer `page` / `session` / `run()`. Par simétrico **`conectar()` / `desconectar()`**, ambos *mode-aware*: `conectar()` abre mstsc (RDP) o el navegador Guacamole (WEB); `desconectar()` mata el proceso `DESKTOP_PROCCESS` (RDP) o cierra el navegador (WEB). **No** hace login Guacamole, ni terminal, ni BCCS. La espera previa al flujo visual la da `esperar_ancla()` (imagen ancla en pantalla; si no hay `DESKTOP_ANCHOR_IMAGE`, cae a espera fija).
 
 ### D8 — Login: separación de responsabilidades
 - `LoginEscritorioWebAction`: solo login al portal Guacamole (selectores web). No toca terminal/BCCS, no reemplaza `login.json`.
@@ -65,16 +65,28 @@ Cierre con reclamo = resultado de negocio mapeado. Falla técnica (imagen/OCR/RD
 ### D10 — Capa BD a ORM/repositories (jun/2026)
 Se migró el acceso a datos de SQL crudo (`text()`) a **SQLAlchemy ORM + repositories**, manteniendo los adapters como **fachada de compatibilidad** (firmas públicas intactas; consumidores sin cambios). Detalle en la sección 6.
 
+### D11 — Teardown simétrico del escritorio (jun/2026)
+El cierre del escritorio se movió del paso `cerrar_app` de `logout.json` a `ConexionEscritorio.desconectar()`, gemelo de `conectar()`. **Por qué:** el "arrancar" ya vivía en infraestructura (fachada rdp/web) pero el "matar" quedaba hardcodeado en el flujo visual compartido. Ahora `LogoutAction` hace el logout visual de BCCS (`logout.json`) y luego `desconectar()`. Web replica la intención de RDP: *salir* (BCCS visual) + *cerrar* (navegador), equivalente a matar mstsc. La sesión web **no se persiste** (`remember_session=False`): cada login arma un contexto nuevo, evitando que un token viejo saltee la pantalla de login del portal. Ambos modos reconectan por lote.
+
+### D12 — Puente de portapapeles Guacamole (jun/2026)
+En modo web, BCCS se alimenta por portapapeles (más veloz/fiable que tipear o el OCR). Un `Ctrl+V` sintético no dispara el puente del navegador hacia el remoto (el problema está en el "llevar", no en el "traer"), así que se escribe **directo al portapapeles remoto** por el túnel usando el cliente JS de Guacamole (`createClipboardStream`), antes del `Ctrl+V`. Cadena: `basic_tools.escribir_texto_clipboard` → `guacamole_clipboard_sync` (puente síncrono, solo web) → `guacamole_clipboard_bridge` (localiza `.client-main`, verifica conexión, escribe; fallbacks: menú Guacamole y espejo local). El retorno es **honesto**: solo cuentan las vías que llegan al portapapeles remoto.
+
 ---
 
-## 3. Flujo de login
+## 3. Flujo de login y logout
 
 ```
+LOGIN
 RDP:  ConexionEscritorio.conectar() [mstsc]                       → login.json
 WEB:  ConexionEscritorio.conectar() [navegador] → LoginEscritorioWebAction [portal] → login.json
+
+LOGOUT
+Ambos: logout.json (salir BCCS + menú, visual) → ConexionEscritorio.desconectar()
+RDP:  desconectar() → mata DESKTOP_PROCCESS (mstsc)
+WEB:  desconectar() → cierra el navegador
 ```
 
-En ambos modos, `LoginAction` espera el escritorio (`esperar_ancla`) antes de `ejecutar_bloque("flow")`.
+En login, `LoginAction` espera el escritorio (`esperar_ancla`) antes de `ejecutar_bloque("flow")`.
 
 ---
 

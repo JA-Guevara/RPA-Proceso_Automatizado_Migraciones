@@ -121,14 +121,23 @@ python scripts/test_database_orm.py --write --id-migracion 123
 - `--write` **requiere** `--id-migracion` (si no, aborta).
 - Valida: conexión, vista (pendientes + siguiente), `PreparadorDeContextos`, `es_plan_valido`, `obtener_id_por_nombre`, y `registrar_detalle` (solo con `--write`).
 
-## 11. Login y escritorio remoto
+## 11. Login, escritorio remoto y logout
 
-(Resumen; este código **no** se modifica al trabajar la capa BD.)
-
-- **`ConexionEscritorio`**: infraestructura. Abre/reutiliza/cierra la conexión según `CONEXION_ESCRITORIO` (`rdp` | `web`). Modo `rdp` abre mstsc; modo `web` abre el navegador del portal Guacamole. Expone `page` / `session` / `run()`. No hace login de negocio.
-- **`LoginAction`**: orquesta el login → conecta → (si web) ejecuta `LoginEscritorioWebAction` → espera el escritorio (`esperar_ancla`) → ejecuta el flujo visual `login.json`.
+- **`ConexionEscritorio`**: infraestructura. Fachada según `CONEXION_ESCRITORIO` (`rdp` | `web`) con el par simétrico **`conectar()` / `desconectar()`**, ambos *mode-aware*. Expone `page` / `session` / `run()`. No hace login de negocio.
+  - `conectar()` → **RDP** abre mstsc; **WEB** abre el navegador del portal Guacamole (`BrowserSession(vida="sesion")`, pantalla completa, permisos de portapapeles, `remember_session=False`).
+  - `desconectar()` → **RDP** mata el proceso `DESKTOP_PROCCESS` (mstsc); **WEB** cierra el navegador (cae el túnel y guacd desarma la conexión).
+- **`LoginAction`**: orquesta el login → `conectar()` → (si web) ejecuta `LoginEscritorioWebAction` → espera el escritorio (`esperar_ancla`) → ejecuta el flujo visual `login.json`.
 - **`LoginEscritorioWebAction`**: solo el login al portal Guacamole (selectores web). No toca terminal/BCCS ni reemplaza `login.json`.
 - **`login.json`**: flujo visual por imágenes del terminal + BCCS. Es el mismo en ambos modos.
+- **`LogoutAction`**: ejecuta `logout.json` (salir de BCCS y del menú, por imágenes) y luego `ConexionEscritorio.desconectar()`. El cierre del cliente (matar mstsc en RDP / cerrar navegador en web) vive en infraestructura, no en el JSON.
+
+### 11.1 Portapapeles en modo web (Guacamole)
+
+En modo web, BCCS se alimenta por **portapapeles** (más rápido y fiable que tipear o que el OCR). Un `Ctrl+V` sintético no dispara el puente de portapapeles del navegador hacia el remoto, así que se escribe **directo al portapapeles remoto** por el túnel, vía el cliente JS de Guacamole.
+
+- **`basic_tools.escribir_texto_clipboard`**: copia local (`pyperclip`) + refuerzo Guacamole + `Ctrl+A`/`Ctrl+V` reales (`pywinauto`).
+- **`guacamole_clipboard_sync`**: puente síncrono; obtiene la `page` activa de `ConexionEscritorio` (solo actúa en modo web).
+- **`guacamole_clipboard_bridge`**: localiza el cliente Guacamole (`.client-main`), verifica que esté conectado y escribe al portapapeles remoto (`createClipboardStream`). *Fallbacks:* textarea del menú Guacamole y espejo local. El booleano de éxito es **honesto**: solo cuentan las vías que llegan al remoto.
 
 ## 12. Flujos visuales
 
@@ -153,7 +162,8 @@ Los flows JSON (`flows/*.json`) siguen siendo la fuente de los pasos visuales de
 ## 15. Estado actual
 
 - Capa BD **migrada a arquitectura ORM/repositories**, con `VistaRepository` como lectura especial legacy.
-- Bot **funcionalmente compatible** con el flujo anterior (no se cambió `TaskManagerMigracion`, `MigracionActions`, `PreparadorDeContextos`, login, escritorio remoto ni flows).
-- Adapters conservan sus **firmas públicas**.
+- **Escritorio remoto unificado**: `ConexionEscritorio` con `conectar()` / `desconectar()` *mode-aware*; el teardown de RDP (matar proceso) y de web (cerrar navegador) vive en infraestructura. `logout.json` quedó como logout puramente visual.
+- **Modo web** con puente de portapapeles Guacamole para alimentar BCCS de forma fiable, y sesión no persistente (`remember_session=False`).
+- Adapters conservan sus **firmas públicas**; el flujo de negocio (`MigracionActions`, validaciones, persistencia) no cambió.
 - Riesgos técnicos **revisados manualmente** y aceptados.
-- Pendiente: ejecutar pruebas integrales cuando haya registros disponibles para `BOT_NAME`.
+- Pendiente: pruebas integrales con registros reales para `BOT_NAME`.

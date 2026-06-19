@@ -292,7 +292,7 @@ Adapters (fachada)  →  Repositories (lógica)  →  Models ORM  →  BD
 | `MigracionesSQLAdapter` | `registrar_detalle(contexto)` |
 | `PlanesSQLAdapter` | `es_plan_valido(id_tipo_lista, nombre_plan, tipo)` |
 
-> ℹ️ `estado`, `migracion`, `migracion_detalle` y `planes` usan **ORM/repositories**. `VistaRepository` se mantiene como **lectura especial legacy** (SQL `text()` con `TOP`/`NOLOCK`) porque la vista es dinámica/configurable y no garantiza una primary key real. El SQL de vista queda **aislado solo ahí**; la vista solo se consulta.
+> ℹ️ **Toda la capa es ORM, incluida la vista.** `estado`, `migracion`, `migracion_detalle`, `planes` y la **vista de pendientes** usan modelos + `select()`/`update()`. `VistaMigracionModel` mapea la vista con `id_migracion` como PK declarada (solo a nivel mapeo); la lectura usa `.limit(1)`, portable (`TOP` en SQL Server, `LIMIT` en otros motores). **No queda SQL crudo en el código**; lo único específico de motor es `DATABASE_URL` + el driver.
 
 ---
 
@@ -406,7 +406,7 @@ python scripts/test_database_orm.py --write --id-migracion 123
 | **Logout web** | Mismo patrón que RDP: *salir BCCS* visual (`logout.json`) + *cerrar* navegador. El logout del portal no es necesario (paridad con matar mstsc) |
 | **Sesión web no persistente** | `remember_session=False`: cada login arma un contexto nuevo, evitando que un token viejo saltee la pantalla de login del portal |
 | **Portapapeles Guacamole** | Escritura directa al portapapeles remoto vía cliente JS; el booleano de éxito solo cuenta vías que llegan al remoto |
-| **Capa BD** | Migrada a ORM/repositories; adapters como fachada (firmas intactas); `VistaRepository` = lectura legacy aislada |
+| **Capa BD** | **100% ORM** (incluida la vista); adapters como fachada (firmas intactas). Sin SQL crudo → portable cambiando solo `DATABASE_URL` + driver |
 
 ---
 

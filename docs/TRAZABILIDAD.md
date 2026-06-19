@@ -71,6 +71,9 @@ El cierre del escritorio se movió del paso `cerrar_app` de `logout.json` a `Con
 ### D12 — Puente de portapapeles Guacamole (jun/2026)
 En modo web, BCCS se alimenta por portapapeles (más veloz/fiable que tipear o el OCR). Un `Ctrl+V` sintético no dispara el puente del navegador hacia el remoto (el problema está en el "llevar", no en el "traer"), así que se escribe **directo al portapapeles remoto** por el túnel usando el cliente JS de Guacamole (`createClipboardStream`), antes del `Ctrl+V`. Cadena: `basic_tools.escribir_texto_clipboard` → `guacamole_clipboard_sync` (puente síncrono, solo web) → `guacamole_clipboard_bridge` (localiza `.client-main`, verifica conexión, escribe; fallbacks: menú Guacamole y espejo local). El retorno es **honesto**: solo cuentan las vías que llegan al portapapeles remoto.
 
+### D13 — Vista de pendientes a ORM (jun/2026)
+Se eliminó el último resto de SQL crudo: `VistaRepository` pasó de `text()` (`SELECT TOP 1 ... WITH (NOLOCK)`) a ORM con `VistaMigracionModel`. **Por qué:** portabilidad entre motores — el código de queries queda agnóstico y solo cambia `DATABASE_URL` + el driver. Claves: `id_migracion` como PK declarada **solo a nivel mapeo** (la vista no tiene PK real, pero el ORM la exige y solo se hace `.first()`); `.limit(1)` genera `TOP`/`LIMIT` según el dialecto; **se quitó `WITH (NOLOCK)`** (no portable) → lectura READ COMMITTED; el orden por prioridad usa `case()` sobre `nombre_lista`. Con esto, **toda la capa BD es ORM**.
+
 ---
 
 ## 3. Flujo de login y logout
@@ -117,7 +120,7 @@ Cadena: `TaskManagerMigracion / Actions → Adapters → Repositories → Models
 - **Adapters conservados como fachada** (`VistaSQLAdapter`, `EstadoSQLAdapter`, `MigracionesSQLAdapter`, `PlanesSQLAdapter`): abren `SessionLocal`, delegan en repositories, logean y devuelven lo mismo que antes. **Sin SQL crudo de negocio.**
 - **Repositories concentran la lógica de BD** (`EstadoRepository`, `MigracionRepository`, `MigracionDetalleRepository`, `PlanRepository`, `VistaRepository`).
 - **Models representan tablas** (`EstadoModel`, `MigracionModel`, `MigracionDetalleModel`, `PlanModel`); `__tablename__` desde `BOT_TABLA_*`.
-- **`VistaRepository` conserva SQL de lectura por seguridad** (`text()` con `TOP`/`NOLOCK`): la vista es dinámica/configurable y no garantiza una primary key real. Es la **única lectura especial legacy**; el SQL de vista está aislado solo ahí. La vista solo se consulta.
+- **`VistaRepository` migrado a ORM** (`VistaMigracionModel` + `select()`/`case()`/`.limit(1)`): se declara `id_migracion` como PK solo a nivel mapeo y se quitaron `TOP`/`NOLOCK`. La vista solo se consulta. **Ya no queda SQL crudo en la capa.**
 - **Configuración moderna mediante `DATABASE_URL`** (requerido).
 - **Riesgos revisados manualmente y aceptados**: `id_migracion` como clave lógica del detalle (una migración = una ejecución = un detalle, insert/update por `id_migracion`); planes corregidos en BD + validación tolerante a espacios; vista como lectura especial.
 - **Pruebas disponibles** con `scripts/test_database_orm.py` (read-only por defecto; escritura solo con `--write` + `--id-migracion`).

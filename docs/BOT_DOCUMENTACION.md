@@ -61,6 +61,7 @@ Ubicación: `infrastructure/database/models/`. El nombre de tabla de cada modelo
 | `MigracionModel` | `BOT_TABLA_MIGRACION` | `id`, `id_estado` |
 | `MigracionDetalleModel` | `BOT_TABLA_MIGRACION_DETALLE` | `id_migracion` (clave lógica) + columnas de resultado del proceso |
 | `PlanModel` | `BOT_TABLA_PLANES` | `id_tipo_lista`, `tipo`, `nombre_plan` |
+| `VistaMigracionModel` | `BOT_VISTA` | vista de pendientes (read-only): `id_migracion` (PK declarada), `lote`, `nombre_lista`, `nombre_tipo_baja`, `id_estado`, `nro_linea`, `monto_valor_residual`, … |
 
 `MigracionDetalleModel` mapea solo las columnas que el bot escribe; las fechas son `DateTime` y el resto queda como tipo de paso seguro para preservar el comportamiento previo.
 
@@ -72,7 +73,7 @@ Ubicación: `infrastructure/database/repositories/`. Concentran la lógica real 
 - **`MigracionRepository`**: actualiza `migracion.id_estado` por `id_migracion` (ORM, `db.get` + set).
 - **`MigracionDetalleRepository`**: upsert del detalle por `id_migracion`. Mantiene el `MAPEO` contexto→columna; inserta si no existe; en update solo toca columnas con valor (no pisa con `None`); sin `merge`.
 - **`PlanRepository`**: valida plan por `id_tipo_lista`/`tipo`/`nombre_plan`. Normaliza en Python (convierte `id_tipo_lista` a int; matching **tolerante** a espacios dobles/diferencias menores del texto). Sin `TRY_CONVERT`/`TOP`.
-- **`VistaRepository`**: **única lectura especial con SQL (`text()`) por seguridad**. La vista es dinámica/configurable y no garantiza primary key real, por lo que no se fuerza a ORM. Solo lectura (`hay_pendientes_para_bot`, `obtener_siguiente_migracion`); nunca insert/update/delete.
+- **`VistaRepository`**: lectura de la vista **con ORM** (`select(VistaMigracionModel)`), ordenando por prioridad con `case()` y tomando `.limit(1)`. Solo lectura (`hay_pendientes_para_bot`, `obtener_siguiente_migracion`); nunca insert/update/delete. **Sin `text()`/`TOP`/`NOLOCK`.**
 
 ## 8. Adapters
 
@@ -147,7 +148,7 @@ Los flows JSON (`flows/*.json`) siguen siendo la fuente de los pasos visuales de
 
 - **`id_migracion` como clave lógica** de `migracion_detalle`: aceptado — una migración representa una ejecución y genera un único detalle; el comportamiento es insert/update por `id_migracion`, igual que la lógica anterior.
 - **Planes**: la tabla `planes` fue corregida manualmente para evitar diferencias por espacios; la validación es **tolerante** para evitar falsos negativos por espacios dobles o diferencias menores del texto capturado.
-- **Vista**: se mantiene como **lectura especial** (SQL `text()` aislado en `VistaRepository`) porque forzar ORM sobre una vista sin PK garantizada es riesgoso. Solo se consulta.
+- **Vista**: migrada a **ORM** (`VistaMigracionModel` + `VistaRepository`). Como la vista no tiene PK real, se declara `id_migracion` como primary key **solo a nivel mapeo** (no toca la BD); como solo se hace `.limit(1)`/`.first()`, no hay riesgo de identidad. Solo se consulta.
 - **`DATABASE_URL`** como estándar de configuración.
 - **Adapters** conservados como fachada de compatibilidad.
 
@@ -161,7 +162,7 @@ Los flows JSON (`flows/*.json`) siguen siendo la fuente de los pasos visuales de
 
 ## 15. Estado actual
 
-- Capa BD **migrada a arquitectura ORM/repositories**, con `VistaRepository` como lectura especial legacy.
+- Capa BD **100% ORM/repositories**, incluida la **vista de pendientes** (`VistaMigracionModel`). No queda SQL crudo en el código.
 - **Escritorio remoto unificado**: `ConexionEscritorio` con `conectar()` / `desconectar()` *mode-aware*; el teardown de RDP (matar proceso) y de web (cerrar navegador) vive en infraestructura. `logout.json` quedó como logout puramente visual.
 - **Modo web** con puente de portapapeles Guacamole para alimentar BCCS de forma fiable, y sesión no persistente (`remember_session=False`).
 - Adapters conservan sus **firmas públicas**; el flujo de negocio (`MigracionActions`, validaciones, persistencia) no cambió.

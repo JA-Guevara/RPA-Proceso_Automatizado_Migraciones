@@ -6,6 +6,7 @@ from infrastructure.database.database import Base
 
 
 class MigracionDetalleModel(Base):
+
     __tablename__ = EnvConfig.BOT_TABLA_MIGRACION_DETALLE
 
     id = Column(Integer, primary_key=True, autoincrement=True)

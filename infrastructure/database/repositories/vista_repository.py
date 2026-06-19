@@ -50,19 +50,19 @@ class VistaRepository:
             .where(VistaMigracionModel.lote == bot_name)
         )
 
-        prioridades_int = [
-            int(p)
+        prioridades_limpias = [
+            p.strip()
             for p in prioridades
-            if str(p).strip().isdigit()
+            if p and p.strip()
         ]
 
-        if prioridades_int:
+        if prioridades_limpias:
             orden_prioridad = case(
                 {
-                    id_tipo_lista: orden
-                    for orden, id_tipo_lista in enumerate(prioridades_int)
+                    nombre_lista: orden
+                    for orden, nombre_lista in enumerate(prioridades_limpias)
                 },
-                value=VistaMigracionModel.id_tipo_lista,
+                value=VistaMigracionModel.nombre_lista,
                 else_=999,
             )
 

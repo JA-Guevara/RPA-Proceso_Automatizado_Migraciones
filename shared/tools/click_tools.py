@@ -31,7 +31,6 @@ class ClickTools:
         usar_imagen: bool = True,
         raise_error: bool = True,
         nombre_logico: str = None,
-        t_region: float = None,
         transitorio: bool = False,
         wait_after_click: float = 0.5,
         wait_timeout: float = None,

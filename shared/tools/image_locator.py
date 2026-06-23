@@ -1,5 +1,3 @@
-"""ImageLocator — localización de imágenes en pantalla (full-screen + polling). Rationale: docs/TRAZABILIDAD.md (D1, D2)."""
-
 import logging
 import re
 import time
@@ -14,22 +12,11 @@ from shared.tools.exceptions import RPAExceptions
 
 logger = logging.getLogger(__name__)
 
-# (left, top, width, height)
 Box = Tuple[int, int, int, int]
-
-# Anclado a la raíz del proyecto (no a os.getcwd(), que varía según
-# desde dónde se lance el bot).
 EVIDENCIA_DIR = Path(BASE_DIR) / "storage" / "debug_failures"
-
-# pyautogui >= 0.9.53 lanza ImageNotFoundException en lugar de devolver None
 _NOT_FOUND = getattr(pyautogui, "ImageNotFoundException", None) or tuple()
 
-
 class ImageLocator:
-    """Localizador full-screen con polling, validación de plantilla y métricas."""
-
-    # Caché de variantes por plantilla, compartido entre instancias.
-    # Las capturas no cambian en runtime, por lo que el glob se hace una vez.
     _variantes_cache: dict = {}
 
     def __init__(
@@ -57,7 +44,6 @@ class ImageLocator:
             else EnvConfig.LOCATOR_CONFIDENCE_FALLBACK
         )
 
-        # Telemetría de la sesión: permite medir hit-rate y plantillas lentas.
         self._stats = {"hits": 0, "misses": 0, "fallback_hits": 0, "ms_total": 0.0}
 
     # ------------------------------------------------------------------ API
@@ -71,13 +57,7 @@ class ImageLocator:
         poll_interval: Optional[float] = None,
         log_miss_como_warning: bool = True,
     ) -> Optional[Box]:
-        """
-        Busca `imagen` en pantalla completa hasta `timeout` segundos.
-        Devuelve la caja (left, top, width, height) o None si no aparece.
 
-        Lanza InterfazException si la plantilla no existe en disco
-        (error de configuración, no de pantalla: debe fallar fuerte).
-        """
         nombre = nombre_logico or imagen
         timeout = timeout if timeout is not None else self.timeout
         confidence = confidence if confidence is not None else self.confidence

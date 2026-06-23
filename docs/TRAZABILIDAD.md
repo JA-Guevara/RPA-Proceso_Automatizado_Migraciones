@@ -40,7 +40,7 @@ Se eliminó `RegionLocator`. Toda búsqueda es full-screen con polling hasta tim
 ### D3 — Semántica de errores en `ClickTools`
 - `raise_error` se respeta: un elemento requerido que no aparece lanza `ImagenNoEncontradaException` (antes devolvía `False` y el flow seguía sobre la pantalla equivocada).
 - `transitorio` = opcional/no crítico: se busca con polling (timeout corto) y si no aparece devuelve `False` sin lanzar.
-- Parámetros legacy (`t_region`, `wait_timeout`) se aceptan y se ignoran, para no romper llamadas viejas.
+- Parámetro legacy (`wait_timeout`) se acepta y se ignora, para no romper llamadas viejas. (El antiguo `t_region` se eliminó: estaba sin uso.)
 
 ### D4 — Stack web code-driven
 Se retiró `WebExecutor` + intérprete JSON web. Las acciones web usan Playwright directo (`page.locator(...)`) con selectores tipados (`WebSelectors`). Razón: Playwright ya es un buen DSL legible; el intérprete JSON era una capa extra sin valor para web.
@@ -73,6 +73,9 @@ En modo web, BCCS se alimenta por portapapeles (más veloz/fiable que tipear o e
 
 ### D13 — Vista de pendientes a ORM (jun/2026)
 Se eliminó el último resto de SQL crudo: `VistaRepository` pasó de `text()` (`SELECT TOP 1 ... WITH (NOLOCK)`) a ORM con `VistaMigracionModel`. **Por qué:** portabilidad entre motores — el código de queries queda agnóstico y solo cambia `DATABASE_URL` + el driver. Claves: `id_migracion` como PK declarada **solo a nivel mapeo** (la vista no tiene PK real, pero el ORM la exige y solo se hace `.first()`); `.limit(1)` genera `TOP`/`LIMIT` según el dialecto; **se quitó `WITH (NOLOCK)`** (no portable) → lectura READ COMMITTED; el orden por prioridad usa `case()` sobre `nombre_lista`. Con esto, **toda la capa BD es ORM**.
+
+### D14 — Regiones: qué se eliminó y qué se conserva (jun/2026)
+Dos cosas distintas se llamaban "región": (1) el **caché de regiones** (`RegionLocator`/`regions.json`) para acelerar la localización de imágenes — **eliminado**, todo es búsqueda full-screen con `ImageLocator` (ver D1); y (2) la **extracción de texto por OCR de región** (`extraer_texto_de_region`: `screenshot(region=...)` + Tesseract). La segunda **se conserva a propósito** en 3 validaciones (`forma_pago`, `estado_controlado`, `idctl_actual`): ahí el OCR **lee y normaliza** (mayúsculas, sin acentos, snap a `palabras_validas`) el valor que la validación compara (`CREDITO`/`PROPIO`/`COR`). Migrarla a portapapeles es viable pero de **alto impacto** (gatilla decisiones de negocio) y exige preservar esa normalización + que el campo sea copiable, así que se dejó intacta. Sí se quitaron los **vestigios muertos**: el parámetro `t_region` (ignorado) y la excepción `RegionNoEncontradaException` (nunca lanzada).
 
 ---
 

@@ -34,8 +34,6 @@ class RPAExceptions:
         tipo = "click"
     class ImagenNoEncontradaException(InterfazException):
         tipo = "imagen_no_encontrada"
-    class RegionNoEncontradaException(InterfazException):
-        tipo = "region_no_encontrada"
     class EntradaTextoException(InterfazException):
         tipo = "entrada_texto"
 

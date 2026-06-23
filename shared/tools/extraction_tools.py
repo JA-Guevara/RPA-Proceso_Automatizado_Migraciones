@@ -146,12 +146,18 @@ class ExtractionTools:
         )
 
 
-    def extraer_fecha_y_antiguedad(self, imagen: str, contexto: dict,
-                                    offset_x: int = 0, offset_y: int = 0,
-                                    clicks: int = 2, nombre_logico: str = None,
-                                    campo_fecha: str = None, campo_antiguedad: str = None,
-                                    transitorio: bool = False):
-
+    def extraer_fecha_y_antiguedad(
+        self,
+        imagen: str,
+        contexto: dict,
+        offset_x: int = 0,
+        offset_y: int = 0,
+        clicks: int = 2,
+        nombre_logico: str = None,
+        campo_fecha: str = None,
+        campo_antiguedad: str = None,
+        transitorio: bool = False,
+    ) -> bool:
         try:
             self.clicker.hacer_clic(
                 target=imagen,
@@ -159,15 +165,28 @@ class ExtractionTools:
                 offset_x=offset_x,
                 offset_y=offset_y,
                 nombre_logico=nombre_logico or imagen,
-                transitorio=transitorio
+                transitorio=transitorio,
             )
 
             texto = self.basic_tools.copiar_texto_actual().strip()
-            texto = texto.replace("...", "").replace("\n", "").strip()
+            texto = (
+                texto
+                .replace("...", "")
+                .replace("\n", "")
+                .replace("\r", "")
+                .strip()
+            )
 
-            logger.info(f"📥 Texto capturado fecha: '{texto}'")
+            logger.info("📥 Texto capturado fecha: '%s'", texto)
 
-            if not texto or texto in ("00/00/0000", "0/0/0000", "00-00-0000"):
+            fechas_invalidas = {
+                "",
+                "00/00/0000",
+                "0/0/0000",
+                "00-00-0000",
+            }
+
+            if texto in fechas_invalidas:
                 mensaje = f"Fecha inválida detectada: '{texto}'"
                 logger.error(mensaje)
                 contexto["existe_error_captura"] = True
@@ -175,47 +194,83 @@ class ExtractionTools:
                 return False
 
             try:
-                fecha_valida = parse(texto, dayfirst=True)
-            except Exception:
-                mensaje = f"Texto extraído no es fecha válida: '{texto}'"
+                fecha_valida = datetime.strptime(texto, "%m/%d/%Y")
+            except ValueError as error:
+                mensaje = (
+                    f"Texto extraído no es una fecha válida "
+                    f"en formato mes/día/año: '{texto}'. Error: {error}"
+                )
                 logger.error(mensaje)
                 contexto["existe_error_captura"] = True
                 contexto["mensaje_error"] = mensaje
                 return False
 
-            hoy = datetime.today()
+            hoy = datetime.now().date()
+            fecha_comparacion = fecha_valida.date()
 
-            if fecha_valida > hoy:
-                mensaje = f"Fecha futura inválida detectada: {fecha_valida}"
+            logger.info(
+                "📅 Fecha interpretada | original='%s' | convertida=%s | hoy=%s",
+                texto,
+                fecha_comparacion,
+                hoy,
+            )
+
+            if fecha_comparacion > hoy:
+                mensaje = (
+                    f"Fecha futura inválida detectada: "
+                    f"{fecha_comparacion.strftime('%Y-%m-%d')}"
+                )
                 logger.error(mensaje)
                 contexto["existe_error_captura"] = True
                 contexto["mensaje_error"] = mensaje
                 return False
 
             if fecha_valida.year < 2000:
-                mensaje = f"Fecha demasiado antigua detectada: {fecha_valida}"
+                mensaje = f"Fecha demasiado antigua detectada: {fecha_comparacion}"
                 logger.error(mensaje)
                 contexto["existe_error_captura"] = True
                 contexto["mensaje_error"] = mensaje
                 return False
 
             fecha_str = fecha_valida.strftime("%Y-%m-%d")
+
             contexto["existe_error_captura"] = False
+            contexto.pop("mensaje_error", None)
 
             if campo_fecha:
                 contexto[campo_fecha] = fecha_str
-                logger.info(f"📅 Fecha válida extraída: {fecha_str}")
+                logger.info("📅 Fecha válida extraída: %s", fecha_str)
 
             if campo_antiguedad:
-                anios, meses, dias = self.basic_tools.calcular_antiguedad(fecha_str)
+                antiguedad = self.basic_tools.calcular_antiguedad(fecha_str)
+
+                if antiguedad is None:
+                    mensaje = f"No se pudo calcular antigüedad para: {fecha_str}"
+                    logger.error(mensaje)
+                    contexto["existe_error_captura"] = True
+                    contexto["mensaje_error"] = mensaje
+                    return False
+
+                anios, meses, dias = antiguedad
+
                 contexto[f"{campo_antiguedad}_meses_rpa"] = meses
-                contexto["codigo_plan_consumo_asignados_rpa"] = 186 if meses > 6 else 184
-                logger.info(f"📆 Antigüedad: {anios} años, {meses} meses, {dias} días")
+                contexto["codigo_plan_consumo_asignados_rpa"] = (
+                    186 if meses > 6 else 184
+                )
+
+                logger.info(
+                    "📆 Antigüedad: %s años, %s meses totales, %s días",
+                    anios,
+                    meses,
+                    dias,
+                )
 
             return True
 
-        except Exception as e:
-            mensaje = f"Error inesperado en extraer_fecha_y_antiguedad: {str(e)}"
+        except Exception as error:
+            mensaje = (
+                f"Error inesperado en extraer_fecha_y_antiguedad: {error}"
+            )
             logger.error(mensaje, exc_info=True)
             contexto["existe_error_captura"] = True
             contexto["mensaje_error"] = mensaje

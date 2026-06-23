@@ -3,7 +3,6 @@ from typing import Optional, Tuple
 from shared.tools.click_tools import ClickTools
 from shared.tools.extraction_tools import ExtractionTools
 from shared.tools.app_tools import AppTools
-from shared.tools.exceptions import RPAExceptions
 from shared.tools.basic_tools import BasicTools
 
 logger = logging.getLogger(__name__)

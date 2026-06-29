@@ -33,13 +33,13 @@ class ValidationEstadoCuentaAction(ActionBase):
                 })
                 self.registrar_observacion("Error al detectar el estado de cuenta válido.")
                 return False
-
+            
             if estado == "EL":
-                self.logger.info("🚫 Línea en estado EL: cuenta eliminada, cerrar con memo.")
+                self.logger.info("🚫 Línea en estado EL: cuenta eliminada, cerrar con reclamo.")
                 self.contexto.update({
                     "estado_cuenta_anterior_rpa": "EL",
                     "estado_cuenta_posterior_rpa": "EL",
-                    "baja_realizada": "Baja Observada",
+                    "baja_realizada": "Baja Desestimada",
                     "mensaje_memo": f"Baja observada - ID solicitud: {id_sharepoint}",
                 })
                 self.registrar_observacion("Línea se encuentra en estado eliminado.")

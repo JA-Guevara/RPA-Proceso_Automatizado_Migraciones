@@ -76,12 +76,21 @@ class MigracionActions:
                     return self._cerrar_con_reclamo()
 
             if not self._validar_estado_cuenta():
-                estado = self.contexto.get("estado_extraido_rpa", "").upper()
+                estado = str(self.contexto.get("estado_extraido_rpa") or "").upper()
                 error_cambio_estado = self.contexto.get("error_de_estado", False)
 
-                if estado in ("PO", "PP") or error_cambio_estado:
-                    self.logger.warning("⚠️ Estado inválido o error detectado, cerrando con reclamo.")
+                if estado in ("PO", "PP", "EL") or error_cambio_estado:
+                    self.logger.warning(
+                        "⚠️ Estado de cuenta no apto para continuar (%s), cerrando con reclamo.",
+                        estado,
+                    )
                     return self._cerrar_con_reclamo()
+
+                self.logger.warning(
+                    "⚠️ Validación de estado de cuenta devolvió False sin cierre específico. Cerrando con reclamo por seguridad. Estado=%s",
+                    estado,
+                )
+                return self._cerrar_con_reclamo()
 
 
             if not self._validar_forma_pago():

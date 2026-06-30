@@ -14,7 +14,9 @@
     { "action": "press_key", "target":"tab" },
     { "action": "click_y_escribir", "target": "paso_post_a_pre.plan_comercial_field", "value": "64","offset_x":70, "clicks": 1},
     { "action": "click_y_escribir", "target": "paso_post_a_pre.plan_consumo_field", "value": "$codigo_plan_consumo_asignados_rpa","offset_x": 70, "clicks": 1},
-    { "action": "click", "target": "paso_post_a_pre.codigo_motivo_field","clicks": 2 ,"offset_x": 70},
+  
+    { "action": "buscar_y_seleccionar", "target": {"referencia": "paso_post_a_pre.codigo_motivo_field", "imagenes": ["paso_post_a_pre.codigo_motivo_field"],"key_contexto": "existe_columna_plan","transitorio": true},"clicks": 2,"max_intentos": 3,"offset_x": 70},
+    
     { "action": "click", "target": "paso_post_a_pre.descripcion_column","clicks": 3 },
     { "action": "click", "target": "paso_post_a_pre.migracion_option","clicks": 1 },
     { "action": "click", "target": "paso_post_a_pre.seleccionar_button","clicks": 1,"transitorio": true},

@@ -48,14 +48,22 @@ class DerivacionSmsAction(WebActionBase):
             raise ValueError("sms_user no configurado")
         if not password:
             raise ValueError("sms_password no configurado")
+
         self.logger.info("🔐 Iniciando sesión SMS")
 
-        await page.goto(url,timeout=60_000,wait_until="networkidle",)         
-        await page.locator(self.S.USERNAME.locator).fill(usuario)
-        await page.locator(self.S.PASSWORD.locator).fill(password)
-        await page.locator(self.S.LOGIN_BUTTON.locator).click()
+        await page.goto(url, timeout=60_000, wait_until="networkidle")
 
-        await page.wait_for_load_state("networkidle")
+        await page.locator(self.S.USERNAME.locator).wait_for(state="visible", timeout=30_000)
+        await page.locator(self.S.USERNAME.locator).fill(usuario, timeout=30_000)
+
+        await page.locator(self.S.PASSWORD.locator).wait_for(state="visible", timeout=30_000)
+        await page.locator(self.S.PASSWORD.locator).fill(password, timeout=30_000)
+
+        await page.locator(self.S.LOGIN_BUTTON.locator).wait_for(state="visible", timeout=30_000)
+        await page.locator(self.S.LOGIN_BUTTON.locator).click(timeout=30_000)
+
+        await page.wait_for_load_state("networkidle", timeout=30_000)
+
 
     async def _derivar(self, page):
         nro_linea = self.var("nro_linea")
@@ -65,20 +73,42 @@ class DerivacionSmsAction(WebActionBase):
 
         self.logger.info(f"📱 Procesando derivación para línea {nro_linea}")
 
-        await page.locator(self.S.DERIVACIONES_MENU.locator).click()
-        await page.locator(self.S.OPCION_DERIVAR_CONSULTA.locator).click()
-        await page.locator(self.S.NRO_CUENTA.locator).fill(str(nro_linea))
-        await page.locator(self.S.TIPO_PLANTILLA_MENU.locator).select_option(label="Bajas Móvil Post Pago")
-        await page.locator(self.S.PLANTILLA_SELECT.locator).select_option(value=self.S.PLANTILLA_CONFIRMACION_BAJA)
+        await page.locator(self.S.DERIVACIONES_MENU.locator).wait_for(state="visible", timeout=30_000)
+        await page.locator(self.S.DERIVACIONES_MENU.locator).click(timeout=30_000)
 
-        await page.locator(self.S.BTN_AGREGAR.locator).click()
-        await page.locator(self.S.BTN_ENVIAR.locator).click()
+        await page.locator(self.S.OPCION_DERIVAR_CONSULTA.locator).wait_for(state="visible", timeout=30_000)
+        await page.locator(self.S.OPCION_DERIVAR_CONSULTA.locator).click(timeout=30_000)
 
-        await page.wait_for_load_state("networkidle")
+        await page.locator(self.S.NRO_CUENTA.locator).wait_for(state="visible", timeout=30_000)
+        await page.locator(self.S.NRO_CUENTA.locator).fill(str(nro_linea), timeout=30_000)
+
+        await page.locator(self.S.TIPO_PLANTILLA_MENU.locator).wait_for(state="visible", timeout=30_000)
+        await page.locator(self.S.TIPO_PLANTILLA_MENU.locator).select_option(
+            label="Bajas Móvil Post Pago",
+            timeout=30_000,
+        )
+
+        await page.locator(self.S.PLANTILLA_SELECT.locator).wait_for(state="visible", timeout=30_000)
+        await page.locator(self.S.PLANTILLA_SELECT.locator).select_option(
+            value=self.S.PLANTILLA_CONFIRMACION_BAJA,
+            timeout=30_000,
+        )
+
+        await page.locator(self.S.BTN_AGREGAR.locator).wait_for(state="visible", timeout=30_000)
+        await page.locator(self.S.BTN_AGREGAR.locator).click(timeout=30_000)
+
+        await page.locator(self.S.BTN_ENVIAR.locator).wait_for(state="visible", timeout=30_000)
+        await page.locator(self.S.BTN_ENVIAR.locator).click(timeout=30_000)
+
+        await page.wait_for_load_state("networkidle", timeout=30_000)
 
         self.logger.info("✅ Derivación enviada")
 
+
     async def _logout(self, page):
         self.logger.info("🚪 Cerrando sesión SMS")
-        await page.locator(self.S.BTN_LOGOUT.locator).click()
-        await page.wait_for_load_state("networkidle")
+
+        await page.locator(self.S.BTN_LOGOUT.locator).wait_for(state="visible", timeout=30_000)
+        await page.locator(self.S.BTN_LOGOUT.locator).click(timeout=30_000)
+
+        await page.wait_for_load_state("networkidle", timeout=30_000)

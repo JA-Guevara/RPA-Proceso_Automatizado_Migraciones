@@ -153,21 +153,28 @@ class ValidationPlanAction(ActionBase):
         self.registrar_observacion(motivo)
         return False
 
-    def _construir_motivo_plan_no_valido(self, diagnostico, nombre_plan, id_tipo_lista, tipo_baja, id_tipo_baja, etapa) -> str:
+
+    def _construir_motivo_plan_no_valido(
+        self,
+        diagnostico,
+        nombre_plan,
+        id_tipo_lista,
+        tipo_baja,
+        id_tipo_baja,
+        etapa,
+    ) -> str:
         nombre_plan_limpio = str(nombre_plan or "").strip()
 
         if diagnostico.error_consulta:
-            return f"No fue posible consultar el catálogo de planes para validar '{nombre_plan_limpio}'. Detalle: {diagnostico.detalle_error}"
+            return "No fue posible consultar el catálogo de planes."
 
         if not diagnostico.entrada_valida:
-            return f"No fue posible validar el plan porque el nombre extraído está vacío o el tipo de lista no es válido. Plan={nombre_plan_limpio!r}, id_tipo_lista={id_tipo_lista!r}"
+            return "No fue posible validar el plan extraído."
 
         if not diagnostico.existe:
-            return f"Plan no registrado en el catálogo: '{nombre_plan_limpio}'. Tipo de migración: {tipo_baja}; id_tipo_baja: {id_tipo_baja}"
+            return f"Plan no encontrado en catálogo: {nombre_plan_limpio}"
 
         if not diagnostico.existe_para_lista:
-            listas = ", ".join(str(valor) for valor in diagnostico.listas_habilitadas) or "sin listas configuradas"
-            return f"El plan '{nombre_plan_limpio}' existe, pero no está habilitado para este proceso. Lista actual: {id_tipo_lista}; tipo de migración: {tipo_baja}; id_tipo_baja: {id_tipo_baja}; listas donde está habilitado: {listas}"
+            return f"Plan no habilitado para este proceso: {nombre_plan_limpio}"
 
-        tipos = ", ".join(diagnostico.tipos_para_lista) or "sin tipo configurado"
-        return f"El plan '{nombre_plan_limpio}' existe para la lista {id_tipo_lista}, pero no está habilitado como {etapa}. Tipos configurados: {tipos}; tipo de migración: {tipo_baja}; id_tipo_baja: {id_tipo_baja}"
+        return f"Plan no habilitado como {etapa}: {nombre_plan_limpio}"

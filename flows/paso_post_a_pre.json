@@ -3,8 +3,23 @@
 
   "validation": [
     { "action": "wait", "wait_time": 1},
-    { "action": "click", "target": "paso_post_a_pre.procesos_button","clicks": 2 },
-    { "action": "click", "target": "paso_post_a_pre.paso_cuenta_option","clicks": 2 },
+    
+    {
+      "action": "buscar_y_seleccionar_reintento",
+      "target": {
+        "referencia": "paso_post_a_pre.procesos_button",
+        "imagenes": [
+          "paso_post_a_pre.paso_cuenta_option"
+        ],
+        "key_contexto": "paso_cuenta_option_visible",
+        "transitorio": true
+      },
+      "clicks_referencia": 2,
+      "clicks_imagen": 2,
+      "max_intentos": 3,
+      "raise_error": true
+    },
+
     { "action": "extraer_validar_error","target": "liberacion_cuenta.image_error","offset_y": 50,"clicks": 1 }
 
   ],

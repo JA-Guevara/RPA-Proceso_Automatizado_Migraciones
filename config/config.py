@@ -64,3 +64,56 @@ class EnvConfig:
     MAIL_LOGIN = os.getenv("MAIL_LOGIN")
     MAIL_SOPORTE = os.getenv("MAIL_SOPORTE")
 
+    # ---------------- Portapapeles ----------------
+    # auto (segun CONEXION_ESCRITORIO) | guacamole | pyperclip
+    CLIPBOARD_BACKEND = os.getenv("CLIPBOARD_BACKEND", "auto")
+
+    # os     = las teclas salen del SO con pywinauto (comportamiento actual)
+    # tunnel = las teclas salen por el tunel con sendKeyEvent (no depende del foco)
+    GUACAMOLE_INPUT_MODE = os.getenv("GUACAMOLE_INPUT_MODE", "os")
+
+    CLIPBOARD_TIMEOUT = float(os.getenv("CLIPBOARD_TIMEOUT", "8"))
+    CLIPBOARD_TIMEOUT_RDP = float(os.getenv("CLIPBOARD_TIMEOUT_RDP", "5"))
+    CLIPBOARD_REINTENTOS = int(os.getenv("CLIPBOARD_REINTENTOS", "2"))
+
+    CLIPBOARD_FAIL_CLOSED = os.getenv("CLIPBOARD_FAIL_CLOSED", "true")
+    CLIPBOARD_POISON = os.getenv("CLIPBOARD_POISON", "true")
+    CLIPBOARD_VENENO_SETTLE_MS = int(os.getenv("CLIPBOARD_VENENO_SETTLE_MS", "120"))
+
+    CLIPBOARD_MEDIR_ECO = os.getenv("CLIPBOARD_MEDIR_ECO", "true")
+    CLIPBOARD_ECO_TIMEOUT_MS = int(os.getenv("CLIPBOARD_ECO_TIMEOUT_MS", "400"))
+    CLIPBOARD_SETTLE_ESCRITURA_MS = int(os.getenv("CLIPBOARD_SETTLE_ESCRITURA_MS", "400"))
+
+    CLIPBOARD_ESPERA_INESTABLE = float(os.getenv("CLIPBOARD_ESPERA_INESTABLE", "1.5"))
+    CLIPBOARD_VERIFICAR_ESCRITURA = os.getenv("CLIPBOARD_VERIFICAR_ESCRITURA", "false")
+
+    # Router: valores cortos y ASCII se tipean en vez de pegarse
+    INPUT_ROUTER_TIPEO = os.getenv("INPUT_ROUTER_TIPEO", "false")
+    INPUT_TIPEO_MAX_LEN = int(os.getenv("INPUT_TIPEO_MAX_LEN", "30"))
+
+    # ---------------- OCR de region ----------------
+    OCR_TRI_ESTADO = os.getenv("OCR_TRI_ESTADO", "true")
+
+    # Umbral de similitud para el snap de OCR contra palabras_validas.
+    # Bajado de 0.8 a 0.70 con evidencia de produccion: el OCR leyo 'CONTROLS'
+    # (la region recorta el final de 'CONTROLADO') y la similitud fue 0.778,
+    # asi que con 0.8 quedaba marcado como ilegible.
+    # Margen medido: 'CONTROLS' vs 'PROPIO' da 0.286, y 'PROPIO' exacto da
+    # 1.000 vs 0.375 contra 'CONTROLADO'. Con 0.70 las dos palabras validas
+    # siguen separadas con holgura.
+    # Un paso del flow puede sobreescribirlo con "umbral_similitud".
+    OCR_UMBRAL_SIMILITUD = float(os.getenv("OCR_UMBRAL_SIMILITUD", "0.70"))
+
+    # ---------------- Limites de almacenamiento ----------------
+    # El modelo declara mensaje_observacion_rpa como String(1000) pero la
+    # columna real de la BD acepta menos. Este tope se aplica al guardar y
+    # evita el "String or binary data would be truncated" de SQL Server.
+    # Poner 0 para usar el largo declarado en el modelo.
+    BOT_MAX_OBSERVACION = int(os.getenv("BOT_MAX_OBSERVACION", "200"))
+
+    # Tope del nombre de plan cuando se incrusta en un mensaje de observacion.
+    BOT_MAX_PLAN_EN_MENSAJE = int(os.getenv("BOT_MAX_PLAN_EN_MENSAJE", "80"))
+    OCR_UMBRAL_TINTA = float(os.getenv("OCR_UMBRAL_TINTA", "0.005"))
+    OCR_EVIDENCIA = os.getenv("OCR_EVIDENCIA", "false")
+    OCR_EVIDENCIA_MAX = int(os.getenv("OCR_EVIDENCIA_MAX", "60"))
+

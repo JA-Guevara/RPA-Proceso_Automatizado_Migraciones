@@ -10,6 +10,7 @@ from core.actions.migracion_action import MigracionActions
 from shared.tools.exceptions import RPAExceptions
 from shared.tools.app_tools import AppTools
 from shared.tools.flow_loader import FlowLoader
+from shared.tools.clipboard import clipboard_service
 from config.images import ImagePaths
 from config.config import EnvConfig
 
@@ -92,6 +93,13 @@ class TaskManagerMigracion:
                         time.sleep(self.delay_sin_pendientes)
                         continue
 
+                    # 🛡 Cortafuegos: si el escritorio/tunel no esta sano, es
+                    # falla tecnica ANTES de tocar el registro. Sin esto, con el
+                    # tunel caido el canvas queda congelado y el bot sigue
+                    # clickeando sobre una foto, "validando" pantallas que ya no
+                    # existen. En modo rdp es un no-op.
+                    clipboard_service.exigir_conexion()
+
                     # 4️⃣ Preparar contexto
                     try:
                         contexto = self.preparador.preparar(registro)
@@ -110,6 +118,11 @@ class TaskManagerMigracion:
 
                     for intento in range(1, self.reintentos_max + 1):
                         try:
+                            # En un reintento, no volver a entrar si el tunel
+                            # sigue caido: se propaga como falla tecnica.
+                            if intento > 1:
+                                clipboard_service.exigir_conexion()
+
                             migracion = MigracionActions(self.variables_base, contexto)
                             if migracion.ejecutar():
                                 exitos += 1
@@ -185,6 +198,7 @@ class TaskManagerMigracion:
                     lote_actual += 1
                     if lote_actual >= self.lote_max:
                         logger.info("📦 Lote completo. Logout temporal...")
+                        clipboard_service.log_resumen("📊 Portapapeles (lote)")
                         migracion_mgr.ejecutar_final()
                         time.sleep(5)
                         break

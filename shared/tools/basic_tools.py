@@ -1,14 +1,12 @@
-import gc
 import logging
 from datetime import datetime
 from typing import Optional, Tuple
 
 import pyautogui
-import pyperclip
 from pywinauto.keyboard import send_keys
 
 from shared.tools.app_tools import AppTools
-from shared.tools.guacamole_clipboard_sync import intentar_copiar_guacamole_sync,copiar_desde_app_activa_sync
+from shared.tools.clipboard import clipboard_service
 
 
 logger = logging.getLogger(__name__)
@@ -27,25 +25,35 @@ class BasicTools:
         mayusculas: bool = False,
         usar_real: bool = True,
         timeout: float | None = None,
+        spec: dict | None = None,
     ) -> str:
-        try:
-            if seleccionar_todo:
-                if not self.seleccionar_todo(usar_real=usar_real):
-                    return ""
+        """
+        Copia el texto de la aplicacion remota.
 
-            texto = copiar_desde_app_activa_sync(
-                usar_real=usar_real,
-                timeout=timeout,
-                limpiar=limpiar,
-                mayusculas=mayusculas,
-            )
+        El backend lo elige clipboard_service segun CONEXION_ESCRITORIO: en web
+        intercepta onclipboard del cliente Guacamole; en rdp conserva el
+        centinela + estabilizacion sobre pyperclip.
 
-            logger.info(f"📋 Texto copiado: '{texto[:60]}...'")
-            return texto
+        `spec` es opcional: si viene, un valor que no cumple la forma esperada
+        se descarta y se sigue esperando en vez de aceptarlo.
 
-        except Exception as e:
-            logger.error(f"❌ Error al copiar texto actual: {e}", exc_info=True)
-            return ""
+        Ya NO devuelve "" ante un fallo de lectura: con CLIPBOARD_FAIL_CLOSED
+        propaga excepcion tecnica para que TaskManagerMigracion recupere la
+        sesion en lugar de seguir con informacion vieja o vacia.
+        """
+        texto = clipboard_service.leer(
+            spec=spec,
+            timeout=timeout,
+            seleccionar_todo=seleccionar_todo,
+        )
+
+        if limpiar:
+            texto = texto.strip()
+        if mayusculas:
+            texto = texto.upper()
+
+        logger.info(f"📋 Texto copiado: '{texto[:60]}...'")
+        return texto
 
     def pegar_texto_actual(self, delay: float = 0.1) -> bool:
         try:
@@ -79,50 +87,21 @@ class BasicTools:
             return False
 
     def escribir_texto_clipboard(self, texto: str, delay: float = 0.001) -> bool:
-        try:
-            logger.warning(
-                "🧪 BASIC_TOOLS_ACTIVO archivo=%s metodo=escribir_texto_clipboard_v2",
-                __file__,
-            )
+        """
+        Escribe en el campo enfocado del remoto.
 
-            texto = self._normalizar_texto(texto)
+        En web ya no hay `esperar(0.1)` a ciegas: el backend confirma o espera
+        el settle antes del Ctrl+V, y el router puede decidir tipear en vez de
+        pegar si el valor es corto y ASCII.
 
-            # 1. Copia normal al portapapeles local
-            pyperclip.copy(texto)
-            logger.info(f"📋 Texto copiado al portapapeles local: '{texto[:60]}...'")
-            logger.info(f"📋 Validación local pyperclip: '{pyperclip.paste()[:60]}...'")
-
-            # 2. Refuerzo silencioso para Guacamole
-            ok_guacamole = intentar_copiar_guacamole_sync(texto)
-            logger.info("📋 Refuerzo clipboard Guacamole aplicado=%s", ok_guacamole)
-
-            # Reafirmar clipboard local después del bridge.
-            # Esto evita que el intento con navegador/Guacamole deje un valor viejo o extraño.
-            pyperclip.copy(texto)
-            logger.info(f"📋 Clipboard local reafirmado antes de Ctrl+V: '{pyperclip.paste()[:60]}...'")
-
-            self.app_tools.esperar(0.1)
-
-            if not self.app_tools.presionar_combinacion_real("ctrl", "a"):
-                logger.error("❌ No se pudo seleccionar el texto actual con ctrl+a")
-                gc.collect()
-                return False
-
-            if not self.app_tools.presionar_combinacion_real("ctrl", "v"):
-                logger.error("❌ No se pudo pegar texto con ctrl+v")
-                gc.collect()
-                return False
-
+        Se quito el gc.collect() por escritura: era una pausa global del
+        interprete en cada campo, sin beneficio.
+        """
+        texto = self._normalizar_texto(texto)
+        ok = clipboard_service.escribir_valor(texto, seleccionar_todo=True)
+        if ok and delay:
             self.app_tools.esperar(delay)
-            logger.info(f"📋 Texto pegado con clipboard: '{texto[:40]}...'")
-
-            gc.collect()
-            return True
-
-        except Exception as e:
-            logger.error(f"❌ Error al pegar con clipboard: {e}", exc_info=True)
-            gc.collect()
-            return False
+        return ok
 
     def escribir_texto_simulado(self, texto: str, delay: float = 0.0) -> bool:
         try:

@@ -5,6 +5,7 @@ from shared.tools.service_tools import ServiceTools
 from shared.tools.app_tools import AppTools
 from shared.tools.basic_tools import BasicTools
 from shared.tools.exceptions import RPAExceptions
+from config.config import EnvConfig
 
 logger = logging.getLogger(__name__)
 
@@ -285,8 +286,13 @@ class DesktopExecutor:
             transitorio=paso.get("transitorio", False),
             ensure_focus=paso.get("ensure_focus", False), 
             stable_wait=float(paso.get("stable_wait", 0.15)),
-            palabras_validas=palabras_validas, 
-            umbral_similitud=float(paso.get("umbral_similitud", 0.8))
+            palabras_validas=palabras_validas,
+            umbral_similitud=float(
+                paso.get("umbral_similitud",
+                         getattr(EnvConfig, "OCR_UMBRAL_SIMILITUD", 0.70))
+            ),
+            contexto=self.contexto,
+            campo_destino=campo_destino,
         )
         self.contexto[campo_destino] = texto
         logger.info(f"📥 Guardado en contexto '{campo_destino}': '{texto}'")

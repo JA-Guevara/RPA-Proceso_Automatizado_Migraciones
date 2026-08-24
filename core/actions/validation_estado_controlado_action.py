@@ -1,68 +1,180 @@
-import pyperclip
 from core.action_base.action_base import ActionBase
+from shared.tools.clipboard import specs
+
 
 class ValidationEstadoControladoAction(ActionBase):
+
     def __init__(self, variables_base, contexto):
-        super().__init__(variables_base, contexto,
-                         flow_name="validation_estado_controlado")
-        self.executor._action_extraer_validar_controlado = self.extraer_situacion_ventas
+        super().__init__(
+            variables_base,
+            contexto,
+            flow_name="validation_estado_controlado"
+        )
+
+        self.executor._action_extraer_validar_controlado = (
+            self.extraer_situacion_ventas
+        )
 
     def ejecutar(self):
-        self.logger.info("🚀 Iniciando validation_estado_controlado action...")
+        self.logger.info(
+            "🚀 Iniciando validation_estado_controlado action..."
+        )
+
         self.hora_inicio()
 
         try:
             self.executor.ejecutar_bloque("validation")
-            situacion = self.contexto.get("situacion", "").strip().upper()
-            cns_cancelado = self.contexto.get("cnsCancelado", True)
+
+            situacion = (
+                self.contexto.get("situacion", "")
+                .strip()
+                .upper()
+            )
+            self.contexto["situacion_cuenta_anterior_rpa"] = situacion
+
+            self.logger.info(
+                f"🔎 Situación detectada: {situacion}"
+            )
 
             if situacion != "PROPIO":
-                self.logger.info(f"🔍 Situación detectada: {situacion} — iniciando validación CNS...")
-                self.executor.ejecutar_bloque("flow - validacionCNS")
+
+                self.logger.info(
+                    f"🔍 Situación '{situacion}' distinta de PROPIO "
+                    f"→ iniciando validación CNS..."
+                )
+
+                self.executor.ejecutar_bloque(
+                    "flow - validacionCNS"
+                )
+
+                cns_cancelado = self.contexto.get(
+                    "cnsCancelado",
+                    False
+                )
+
+                if isinstance(cns_cancelado, str):
+                    cns_cancelado = (
+                        cns_cancelado.strip().lower()
+                        in ("true", "1", "si", "sí")
+                    )
+                else:
+                    cns_cancelado = bool(cns_cancelado)
+
+                self.logger.info(
+                    f"🔎 cnsCancelado tras la validación = "
+                    f"{cns_cancelado}"
+                )
 
                 if cns_cancelado:
-                    self.logger.info("✅ Validación OK: CNS cancelado y situación distinta de PROPIO.")
-                    self.executor.ejecutar_bloque("flow - cambioPropio")
+
+                    self.logger.info(
+                        "✅ Validación OK: "
+                        "CNS cancelado y situación distinta de PROPIO."
+                    )
+
+                    self.executor.ejecutar_bloque(
+                        "flow - cambioPropio"
+                    )
+
                     self.contexto.update({
                         "situacion_cuenta_anterior_rpa": situacion,
                         "situacion_cuenta_posterior_rpa": "PROPIO",
-                        "baja_realizada": ""
+                        "baja_realizada": "",
+                        "mensaje_memo": "",
                     })
+
                     return True
+
                 else:
-                    self.logger.warning("⚠️ CNS no cancelado → cierre con reclamo.")
+
+                    self.logger.warning(
+                        "⚠️ CNS no cancelado → cierre con reclamo."
+                    )
+
+                    id_sharepoint = self.contexto.get(
+                        "id_sharepoint",
+                        ""
+                    )
+
+                    mensaje_cns = self.contexto.get(
+                        "mensaje_memo",
+                        ""
+                    ).strip()
+
+                    if not mensaje_cns:
+                        mensaje_cns = (
+                            "Baja Observada - "
+                            "CNS no cancelado - "
+                            f"ID solicitud: {id_sharepoint}"
+                        )
+
                     self.contexto.update({
                         "baja_realizada": "Baja Observada",
-                        "mensaje_memo": f"Baja Observada - CNS no cancelado - ID solicitud: {self.contexto.get('id_sharepoint')}"
+                        "mensaje_memo": mensaje_cns,
+                        "mensaje_observacion_rpa": self._agregar_observacion(
+                            mensaje_cns
+                        ),
                     })
+
+                    self.logger.info(
+                        f"📝 Observación CNS registrada: {mensaje_cns}"
+                    )
+
                     return False
+
             else:
-                self.logger.info("✅ Situación es 'PROPIO', no se requiere validación adicional.")
+
+                self.logger.info(
+                    "✅ Situación es 'PROPIO', "
+                    "no se requiere validación adicional."
+                )
+
                 self.contexto.update({
                     "situacion_cuenta_anterior_rpa": situacion,
                     "situacion_cuenta_posterior_rpa": situacion,
-                    "baja_realizada": ""
+                    "baja_realizada": "",
+                    "mensaje_memo": "",
                 })
+
                 return True
 
         except Exception as e:
-            self.manejar_excepcion(e)
-            try:
-                self.logger.warning("🔁 Ejecutando reboot_validation como fallback...")
-                self.executor.ejecutar_bloque("reboot_validation")
-            except Exception as err:
-                self.logger.warning(f"⚠️ Error al ejecutar reboot_validation: {err}", exc_info=True)
 
-            raise  
+            self.manejar_excepcion(e)
+
+            try:
+                self.logger.warning(
+                    "🔁 Ejecutando reboot_validation como fallback..."
+                )
+
+                self.executor.ejecutar_bloque(
+                    "reboot_validation"
+                )
+
+            except Exception as err:
+
+                self.logger.warning(
+                    f"⚠️ Error al ejecutar reboot_validation: {err}",
+                    exc_info=True
+                )
+
+            raise
 
         finally:
             self.hora_fin()
 
     def extraer_situacion_ventas(self, paso):
-        self.logger.info("🔍 Ejecutando acción personalizada: extraer_situacion_ventas")
+
+        self.logger.info(
+            "🔍 Ejecutando acción personalizada: "
+            "extraer_situacion_ventas"
+        )
 
         try:
-            ruta, nombre = self.executor._resolver_imagen(paso.get("target"))
+
+            ruta, nombre = self.executor._resolver_imagen(
+                paso.get("target")
+            )
 
             self.clicker.hacer_clic(
                 target=ruta,
@@ -76,6 +188,7 @@ class ValidationEstadoControladoAction(ActionBase):
             )
 
             self.app_tools.esperar(0.2)
+
             self.app_tools.presionar_tecla_real("up")
 
             texto = self.basic_tools.copiar_texto_actual(
@@ -83,71 +196,300 @@ class ValidationEstadoControladoAction(ActionBase):
                 limpiar=True,
                 mayusculas=True,
                 usar_real=True,
-                timeout=12.0,
+                spec=specs.CNS,
+            )
+
+            self.logger.info(
+                f"📋 Texto capturado: {texto}"
             )
 
             if not texto:
-                self.logger.warning("⚠️ No se pudo capturar texto para validar CNS.")
-                self.contexto["cnsCancelado"] = False
-                self.contexto["mensaje_memo"] = (
-                    f"Baja Observada - No se pudo capturar CNS - "
-                    f"ID solicitud: {self.contexto.get('id_sharepoint')}"
+
+                self.logger.warning(
+                    "⚠️ No se pudo capturar texto "
+                    "para validar CNS."
                 )
-                self.contexto["baja_realizada"] = "Baja Observada"
+
+                mensaje = (
+                    "Baja Observada - "
+                    "No se pudo capturar CNS - "
+                    f"ID solicitud: "
+                    f"{self.contexto.get('id_sharepoint', '')}"
+                )
+
+                self.contexto.update({
+                    "cnsCancelado": False,
+                    "mensaje_memo": mensaje,
+                    "baja_realizada": "Baja Observada",
+                    "mensaje_observacion_rpa": (
+                        self._agregar_observacion(mensaje)
+                    ),
+                })
+
                 return
 
-            lineas = [line.strip() for line in texto.splitlines() if line.strip()]
-            self.logger.info(f"📋 Texto capturado: {len(lineas)} líneas detectadas")
+            lineas = [
+                line.strip()
+                for line in texto.splitlines()
+                if line.strip()
+            ]
 
-            nro_cuenta = self.contexto.get("nro_linea", "").strip()
-            id_sharepoint = self.contexto.get("id_sharepoint")
-            valor_residual = str(self.contexto.get("valor_residual", "0")).strip().replace(",", ".")
-            tipo_cns = self.contexto.get("tipo_cns", "CNS").strip().upper()
+            self.logger.info(
+                f"📋 Texto capturado: "
+                f"{len(lineas)} líneas detectadas"
+            )
+
+            nro_cuenta = (
+                str(
+                    self.contexto.get(
+                        "nro_linea",
+                        ""
+                    )
+                )
+                .strip()
+            )
+
+            id_sharepoint = self.contexto.get(
+                "id_sharepoint",
+                ""
+            )
+
+            valor_residual = (
+                str(
+                    self.contexto.get(
+                        "valor_residual",
+                        "0"
+                    )
+                )
+                .strip()
+                .replace(",", ".")
+            )
+
+            tipo_cns = (
+                self.contexto.get(
+                    "tipo_cns",
+                    "CNS"
+                )
+                .strip()
+                .upper()
+            )
+
+            self.logger.info(
+                f"🔎 Datos para validación CNS | "
+                f"tipo={tipo_cns} | "
+                f"cuenta={nro_cuenta} | "
+                f"saldo esperado={valor_residual}"
+            )
 
             encontrado = False
 
             for linea in lineas:
+
                 partes = linea.split()
 
-                if len(partes) < 4:
+                self.logger.info(
+                    f"🔎 Analizando línea CNS: {partes}"
+                )
+
+                if len(partes) < 2:
+
+                    self.logger.warning(
+                        f"⚠️ Línea ignorada por cantidad "
+                        f"insuficiente de columnas: {linea}"
+                    )
+
                     continue
 
                 tipo = partes[0].strip().upper()
-                cuenta = partes[5].strip() if len(partes) > 5 else ""
-                saldo = partes[-2].replace(",", ".") if len(partes) > 2 else ""
-                estado = partes[-1].strip().upper() if len(partes) > 1 else ""
 
-                if tipo == tipo_cns and cuenta == nro_cuenta:
-                    match_saldo = saldo == valor_residual
-                    match_estado = estado == "CANCELADO"
-
-                    self.contexto["cnsCancelado"] = match_saldo and match_estado
-                    encontrado = True
-                    break
-
-            if not encontrado:
-                self.contexto["cnsCancelado"] = False
-                self.contexto["mensaje_memo"] = (
-                    f"Baja Observada - No se encontró CNS - "
-                    f"ID solicitud: {id_sharepoint}"
+                cuenta = (
+                    partes[5].strip()
+                    if len(partes) > 5
+                    else ""
                 )
-                self.contexto["baja_realizada"] = "Baja Observada"
 
-            else:
-                if not self.contexto["cnsCancelado"]:
-                    self.contexto["mensaje_memo"] = (
-                        f"Baja Observada - CNS no se encuentra cancelado - "
+                estado = partes[-1].strip().upper()
+
+                saldo = ""
+
+                for valor in reversed(partes[:-1]):
+
+                    valor_limpio = (
+                        valor.strip()
+                        .replace(",", ".")
+                    )
+
+                    if self._es_numero(valor_limpio):
+
+                        saldo = valor_limpio
+                        break
+
+                self.logger.info(
+                    f"🔎 Evaluando CNS | "
+                    f"tipo={tipo} | "
+                    f"cuenta={cuenta} | "
+                    f"saldo={saldo} | "
+                    f"estado={estado}"
+                )
+
+                if tipo != tipo_cns:
+
+                    self.logger.info(
+                        f"⏭️ Tipo descartado: "
+                        f"{tipo} != {tipo_cns}"
+                    )
+
+                    continue
+
+                if cuenta != nro_cuenta:
+
+                    self.logger.info(
+                        f"⏭️ Cuenta descartada: "
+                        f"{cuenta} != {nro_cuenta}"
+                    )
+
+                    continue
+
+                encontrado = True
+
+                match_saldo = (
+                    saldo == valor_residual
+                )
+
+                match_estado = (
+                    estado == "CANCELADO"
+                )
+
+                cns_cancelado = (
+                    match_saldo and match_estado
+                )
+
+                self.logger.info(
+                    f"🎯 CNS encontrado | "
+                    f"cuenta_ok=True | "
+                    f"saldo_ok={match_saldo} | "
+                    f"estado_ok={match_estado} | "
+                    f"cnsCancelado={cns_cancelado}"
+                )
+
+                self.contexto["cnsCancelado"] = (
+                    cns_cancelado
+                )
+
+                if not cns_cancelado:
+
+                    mensaje = (
+                        "Baja Observada - "
+                        "CNS no se encuentra cancelado - "
                         f"ID solicitud: {id_sharepoint}"
                     )
-                    self.contexto["baja_realizada"] = "Baja Observada"
+
+                    self.contexto.update({
+                        "mensaje_memo": mensaje,
+                        "baja_realizada": "Baja Observada",
+                        "mensaje_observacion_rpa": (
+                            self._agregar_observacion(mensaje)
+                        ),
+                    })
+
                 else:
-                    self.contexto["mensaje_memo"] = ""
+
+                    self.contexto.update({
+                        "mensaje_memo": "",
+                    })
+
+                    self.logger.info(
+                        "✅ CNS encontrado, saldo correcto "
+                        "y estado CANCELADO."
+                    )
+
+                break
+
+            if not encontrado:
+
+                self.contexto["cnsCancelado"] = False
+
+                mensaje = (
+                    "Baja Observada - "
+                    "No se encontró CNS - "
+                    f"ID solicitud: {id_sharepoint}"
+                )
+
+                self.contexto.update({
+                    "mensaje_memo": mensaje,
+                    "baja_realizada": "Baja Observada",
+                    "mensaje_observacion_rpa": (
+                        self._agregar_observacion(mensaje)
+                    ),
+                })
+
+                self.logger.warning(
+                    f"⚠️ {mensaje}"
+                )
 
             self.logger.info(
-                f"✅ Resultado CNS: Cancelado = {self.contexto['cnsCancelado']} "
-                f"| Mensaje: '{self.contexto['mensaje_memo']}'"
+                "✅ Resultado CNS: "
+                f"Cancelado = "
+                f"{self.contexto.get('cnsCancelado', False)} "
+                f"| Mensaje = "
+                f"'{self.contexto.get('mensaje_memo', '')}' "
+                f"| Observación = "
+                f"'{self.contexto.get('mensaje_observacion_rpa', '')}'"
             )
 
         except Exception as e:
-            self.logger.error(f"❌ Error al extraer situación de ventas: {e}", exc_info=True)
+
+            self.logger.error(
+                f"❌ Error al extraer situación de ventas: {e}",
+                exc_info=True
+            )
+
+            self.contexto["cnsCancelado"] = False
+
             raise
+
+    @staticmethod
+    def _es_numero(valor):
+
+        if not valor:
+            return False
+
+        try:
+            float(valor)
+            return True
+        except (ValueError, TypeError):
+            return False
+
+    def _agregar_observacion(self, nueva_observacion):
+
+        nueva_observacion = (
+            str(nueva_observacion or "")
+            .strip()
+        )
+
+        if not nueva_observacion:
+            return self.contexto.get(
+                "mensaje_observacion_rpa",
+                ""
+            )
+
+        observacion_actual = (
+            str(
+                self.contexto.get(
+                    "mensaje_observacion_rpa",
+                    ""
+                )
+            )
+            .strip()
+        )
+
+        if not observacion_actual:
+            return nueva_observacion
+
+        if nueva_observacion in observacion_actual:
+            return observacion_actual
+
+        return (
+            f"{observacion_actual} | "
+            f"{nueva_observacion}"
+        )

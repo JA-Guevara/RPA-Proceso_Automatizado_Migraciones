@@ -1,5 +1,5 @@
-import pyperclip
 from core.action_base.action_base import ActionBase
+from shared.tools.clipboard import specs
 
 class SaldoCoreBalanceAction(ActionBase):
     def __init__(self, variables_base, contexto):
@@ -60,7 +60,7 @@ class SaldoCoreBalanceAction(ActionBase):
                 limpiar=True,
                 mayusculas=True,
                 usar_real=True,
-                timeout=15.0,
+                spec=specs.BILLETERA,
             )
 
             if not texto:

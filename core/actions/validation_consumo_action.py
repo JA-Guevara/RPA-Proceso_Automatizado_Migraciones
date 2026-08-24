@@ -1,5 +1,5 @@
-import pyperclip
 from core.action_base.action_base import ActionBase
+from shared.tools.clipboard import specs
 
 
 class ValidationConsumoAction(ActionBase):
@@ -83,11 +83,24 @@ class ValidationConsumoAction(ActionBase):
                 limpiar=True,
                 mayusculas=False,
                 usar_real=True,
-                timeout=12.0,
+                spec=specs.CONSUMO,
             )
 
             if not texto:
-                self.logger.warning("⚠️ No se pudo capturar texto para validar consumo.")
+                # Llegar aca ahora significa "la grilla llego VACIA", no
+                # "no pude leer".
+                #
+                # El backend de portapapeles distingue las dos cosas: si no
+                # llega NINGUN evento del remoto lanza excepcion tecnica antes
+                # de volver aca. Si llega un evento con texto en blanco (una
+                # grilla sin filas, que en produccion se ve como '\r\n'),
+                # devuelve ese vacio para que la accion lo interprete.
+                #
+                # Una grilla de facturas vacia = 0 facturas pendientes. Ese es
+                # el resultado de negocio correcto, no un fallo.
+                self.logger.info(
+                    "🧾 Grilla de facturas vacia → 0 facturas pendientes."
+                )
                 self.contexto["facturas_pendientes_rpa"] = 0
                 return
 

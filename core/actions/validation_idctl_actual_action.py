@@ -1,5 +1,5 @@
-import pyperclip
 from core.action_base.action_base import ActionBase
+from shared.tools.clipboard import specs
 
 class ValidationIdctlActualAction(ActionBase):
     def __init__(self, variables_base, contexto):
@@ -13,7 +13,21 @@ class ValidationIdctlActualAction(ActionBase):
             self.executor.ejecutar_bloque("validation")
 
             idctl_actual = self.contexto.get("idctl_actual_rpa", "").strip().upper()
-            self.logger.info(f"🔍 IDCTL detectada: '{idctl_actual}'")
+            ocr_fallo = self.contexto.get("existe_error_ocr_idctl_actual_rpa", False)
+            self.logger.info(f"🔍 IDCTL detectada: '{idctl_actual}' (ocr_fallo={ocr_fallo})")
+
+            # Con "" fuera de palabras_validas en el flow, un OCR ilegible ya no
+            # se confunde con "campo vacio, todo bien".
+            if ocr_fallo:
+                self.contexto["mensaje_memo"] = (
+                    f"Baja Observada - ID solicitud: {self.contexto.get('id_sharepoint')}"
+                )
+                self.contexto["baja_realizada"] = "Baja Observada"
+                self.registrar_observacion(
+                    "No se pudo leer el Motivo de Registracion (IDCTL) - OCR ilegible.",
+                    tipo="error",
+                )
+                return False
 
             if idctl_actual != "COR":
                 self.logger.info("✅ IDCTL no es 'COR', continúa el proceso.")
@@ -21,7 +35,7 @@ class ValidationIdctlActualAction(ActionBase):
 
                 existe_cambio_pendiente = self.contexto.get("existe_cambio_pendiente_rpa", False)
                 if existe_cambio_pendiente:
-                    self.logger.info("🔄 No se detectó pendiente, ejecutando flujo de cambio de plan...")
+                    self.logger.info("🔄 Cambio de plan pendiente detectado, ejecutando flujo de cambio de plan...")
                     self.executor.ejecutar_bloque("flow_cambio_plan")
 
                 return True
@@ -72,7 +86,7 @@ class ValidationIdctlActualAction(ActionBase):
                 limpiar=True,
                 mayusculas=False,
                 usar_real=True,
-                timeout=12.0,
+                spec=specs.PLAN_PROGRAMADO,
             )
 
             self.logger.info(f"📋 Texto copiado (primeras 300 chars):\n{texto[:300]}...")

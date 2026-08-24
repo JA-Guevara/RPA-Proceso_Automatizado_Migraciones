@@ -1,5 +1,6 @@
 
 import logging
+import sys
 import time
 from typing import Optional, Tuple, Union
 
@@ -9,8 +10,52 @@ from shared.tools.app_tools import AppTools
 from shared.tools.basic_tools import BasicTools
 from shared.tools.exceptions import RPAExceptions
 from shared.tools.image_locator import ImageLocator, default_locator
+from shared.tools.clipboard import clipboard_service
 
 logger = logging.getLogger(__name__)
+
+# Chequeo de vida del escritorio antes de cada clic, limitado en frecuencia.
+# El chequeo es local (no evalua JS ni toca la red), pero se throttlea para no
+# llamarlo 20 veces por registro sin necesidad.
+_ULTIMO_CHEQUEO = 0.0
+_INTERVALO_CHEQUEO = 0.5
+
+
+def _verificar_escritorio_vivo():
+    """
+    Aborta si el escritorio remoto ya no existe.
+
+    Sin esto, si el navegador de Guacamole se cierra o se cae, PyAutoGUI sigue
+    disparando clics sobre lo que haya quedado en pantalla: el escritorio del
+    usuario, otra ventana, cualquier cosa. El bot seguiria "ejecutando a
+    ciegas" y puede hacer dano fuera de BCCS.
+
+    En modo rdp es un no-op.
+    """
+    # REGLA 1: nunca bloquear la recuperacion.
+    #
+    # Si ya hay una excepcion en curso, estamos dentro de un except: es el
+    # camino de logout + login que usa TaskManagerMigracion._recuperar_sesion().
+    # Bloquear ahi rompe la recuperacion y convierte un fallo recuperable en
+    # una parada total del bot. Paso exactamente eso en produccion el 24/08.
+    if sys.exc_info()[0] is not None:
+        return
+
+    global _ULTIMO_CHEQUEO
+    ahora = time.monotonic()
+    if ahora - _ULTIMO_CHEQUEO < _INTERVALO_CHEQUEO:
+        return
+    _ULTIMO_CHEQUEO = ahora
+
+    try:
+        clipboard_service.exigir_viva()
+    except RPAExceptions.ConexionFallidaException:
+        # Unica condicion que el guard debe abortar: pagina cerrada de verdad.
+        raise
+    except Exception as e:
+        # Cualquier otro fallo DENTRO del guard no debe romper el clic.
+        # El guard es una salvaguarda, no un requisito del proceso.
+        logger.debug("guard de escritorio no concluyente: %s", e)
 
 
 class ClickTools:
@@ -37,6 +82,8 @@ class ClickTools:
         timeout: float = None,
     ) -> bool:
         try:
+            _verificar_escritorio_vivo()
+
             x = y = None
 
             if usar_imagen and isinstance(target, str):
@@ -131,7 +178,12 @@ class ClickTools:
         if not clic_realizado:
             return False
 
-        return self.basic_tools.escribir_texto_clipboard(texto, delay=delay)
+        from shared.tools.clipboard import clipboard_service
+
+        ok = clipboard_service.escribir_valor(texto, seleccionar_todo=True)
+        if ok and delay:
+            self.app_tools.esperar(delay)
+        return ok
 
     def clic_y_escribir_tradicional(
         self,

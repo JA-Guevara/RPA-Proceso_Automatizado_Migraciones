@@ -1,5 +1,5 @@
-import pyperclip
 from core.action_base.action_base import ActionBase
+from shared.tools.clipboard import specs
 
 class ValidationFormaPagoAction(ActionBase):
     def __init__(self, variables_base, contexto):
@@ -14,7 +14,24 @@ class ValidationFormaPagoAction(ActionBase):
             self.executor.ejecutar_bloque("validation")
 
             forma_actual = self.contexto.get("forma_pago_rpa", "").strip().upper()
-            self.logger.info(f"🔍 Forma de pago detectada: '{forma_actual}'")
+            ocr_fallo = self.contexto.get("existe_error_ocr_forma_pago_rpa", False)
+            self.logger.info(
+                f"🔍 Forma de pago detectada: '{forma_actual}' (ocr_fallo={ocr_fallo})"
+            )
+
+            # Un OCR ilegible NO es "no requiere cambio". Antes cualquier fallo
+            # de lectura devolvia "" y la cuenta se quedaba en DEBITO AUTOMATICO
+            # mientras la migracion seguia adelante.
+            if ocr_fallo:
+                self.logger.warning("🚫 No se pudo leer la forma de pago → cierre con reclamo.")
+                self.contexto.update({
+                    "baja_realizada": "Baja Observada",
+                    "mensaje_memo": f"Baja observada - ID solicitud: {self.contexto.get('id_sharepoint')}",
+                })
+                self.registrar_observacion(
+                    "No se pudo leer la forma de pago (OCR ilegible).", tipo="error"
+                )
+                return False
 
             if forma_actual == "CREDITO" or forma_actual == "":
                 self.logger.info("✅ Forma de pago ya es '' o CREDITO. No se requiere cambio.")
@@ -61,10 +78,14 @@ class ValidationFormaPagoAction(ActionBase):
 
             self.app_tools.esperar(0.2)
             self.app_tools.presionar_tecla_real("up")
-            self.app_tools.presionar_combinacion_real("ctrl", "c")
-            self.app_tools.esperar(0.2)
 
-            texto = pyperclip.paste().strip().upper()
+            texto = self.basic_tools.copiar_texto_actual(
+                seleccionar_todo=False,
+                limpiar=True,
+                mayusculas=True,
+                usar_real=True,
+                spec=specs.CONSUMO,
+            )
             self.logger.info(f"📋 Texto original copiado:\n{texto[:300]}...")
 
             nro_cuenta = str(

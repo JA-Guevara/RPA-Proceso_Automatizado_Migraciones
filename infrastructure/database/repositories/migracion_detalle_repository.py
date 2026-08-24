@@ -1,8 +1,45 @@
 import logging
 
+from sqlalchemy import String
+
+from config.config import EnvConfig
 from infrastructure.database.models.migracion_detalle_model import MigracionDetalleModel
 
 logger = logging.getLogger(__name__)
+
+
+def _limites_columnas() -> dict:
+    """
+    Largo maximo por columna, leido del propio modelo ORM.
+
+    Existe para que un texto largo NUNCA rompa el INSERT. SQL Server rechaza
+    la fila entera con "String or binary data would be truncated", asi que un
+    solo campo desbordado hacia perder TODO el detalle del registro.
+
+    Casos reales de desborde:
+      - mensaje_observacion_rpa: MigracionActions._anexar_observacion concatena
+        con ' | ', y los mensajes incluyen textos de excepcion que pueden ser
+        de cientos de caracteres.
+      - plan_consumo_*_rpa: una captura de OCR degradada devuelve texto largo.
+      - servicios_asignados_rpa / servicios_eliminados_rpa: String(50) y se
+        van concatenando por cada servicio tocado.
+    """
+    limites = {}
+
+    for col in MigracionDetalleModel.__table__.columns:
+        tipo = getattr(col, "type", None)
+        largo = getattr(tipo, "length", None)
+        if isinstance(tipo, String) and largo:
+            limites[col.name] = int(largo)
+
+    # El modelo declara mensaje_observacion_rpa como String(1000), pero la
+    # columna real acepta menos. BOT_MAX_OBSERVACION manda cuando es mas chico.
+    tope = int(getattr(EnvConfig, "BOT_MAX_OBSERVACION", 0) or 0)
+    if tope > 0:
+        actual = limites.get("mensaje_observacion_rpa", tope)
+        limites["mensaje_observacion_rpa"] = min(actual, tope)
+
+    return limites
 
 
 class MigracionDetalleRepository:
@@ -31,6 +68,29 @@ class MigracionDetalleRepository:
         "mensaje_observacion_rpa": "mensaje_observacion_rpa",
     }
 
+    LIMITES = _limites_columnas()
+
+    def _recortar(self, columna: str, valor):
+        """Recorta al largo de la columna. Deja rastro en el log del original."""
+        if not isinstance(valor, str):
+            return valor
+
+        limite = self.LIMITES.get(columna)
+        if not limite or len(valor) <= limite:
+            return valor
+
+        if limite > 3:
+            recortado = valor[: limite - 3].rstrip() + "..."
+        else:
+            recortado = valor[:limite]
+
+        logger.warning(
+            "✂️ '%s' excedia el limite de la columna (%s > %s). Se recorta. "
+            "Original: %r",
+            columna, len(valor), limite, valor[:300],
+        )
+        return recortado[:limite]
+
     def obtener_por_id_migracion(self, db, id_migracion):
         return (
             db.query(MigracionDetalleModel)
@@ -55,7 +115,7 @@ class MigracionDetalleRepository:
                 if valor == "" or valor.upper().startswith("ERROR_"):
                     valor = None
 
-            params[col] = valor
+            params[col] = self._recortar(col, valor)
 
         params["id_migracion"] = id_migracion
 

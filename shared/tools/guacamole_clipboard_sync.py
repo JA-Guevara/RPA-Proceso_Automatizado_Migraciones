@@ -26,6 +26,19 @@ def obtener_modo_conexion() -> str:
 
 
 def intentar_copiar_guacamole_sync(texto: str) -> bool:
+    """
+    OBSOLETO: usar clipboard_service.escribir(). Se conserva por compatibilidad
+    con scripts que lo importen; el camino principal ya no pasa por aca.
+    """
+    try:
+        from shared.tools.clipboard import clipboard_service
+        return bool(clipboard_service.escribir(texto, seleccionar_todo=False, pegar=False))
+    except Exception as e:
+        logger.warning("⚠️ intentar_copiar_guacamole_sync (shim) fallo: %s", e)
+        return False
+
+
+def _intentar_copiar_guacamole_sync_legacy(texto: str) -> bool:
 
     try:
         from infrastructure.remote_desktop.conexion_escritorio import ConexionEscritorio
@@ -68,6 +81,26 @@ def intentar_copiar_guacamole_sync(texto: str) -> bool:
 
 
 def copiar_desde_app_activa_sync(
+    usar_real: bool = True,
+    modo: str | None = None,
+    timeout: float | None = None,
+    intervalo: float = 0.25,
+    reintentos: int | None = None,
+    limpiar: bool = False,
+    mayusculas: bool = False,
+) -> str:
+    """OBSOLETO: usar clipboard_service.leer(). Se conserva por compatibilidad."""
+    from shared.tools.clipboard import clipboard_service
+
+    texto = clipboard_service.leer(timeout=timeout, seleccionar_todo=False)
+    if limpiar:
+        texto = texto.strip()
+    if mayusculas:
+        texto = texto.upper()
+    return texto
+
+
+def _copiar_desde_app_activa_sync_legacy(
     usar_real: bool = True,
     modo: str | None = None,
     timeout: float | None = None,

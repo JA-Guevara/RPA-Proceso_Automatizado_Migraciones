@@ -1,4 +1,5 @@
 from core.action_base.action_base import ActionBase
+from config.config import EnvConfig
 from infrastructure.database.adapters.planes_adapter import PlanesSQLAdapter
 
 
@@ -66,7 +67,7 @@ class ValidationPlanAction(ActionBase):
                 "mensaje_memo": f"Baja Realizada por otro Canal - ID solicitud: {id_sharepoint}",
                 "baja_realizada": "Baja Realizada por Otro Canal"
             })
-            self.registrar_observacion("Línea ya migrada por otro canal antes de ejecución del bot")
+            self.registrar_observacion("Línea ya migrada por otro canal ")
             return False
 
         diagnostico = self.plan_adapter.diagnosticar_plan(id_tipo_lista, plan_actual_rpa)
@@ -154,6 +155,24 @@ class ValidationPlanAction(ActionBase):
         return False
 
 
+    def _plan_corto(self, nombre_plan) -> str:
+        """
+        Nombre de plan acotado para incrustar en un mensaje de observacion.
+
+        La columna mensaje_observacion_rpa tiene un tope real de
+        almacenamiento, y una captura de OCR degradada puede devolver un texto
+        largo (extraer_y_validar_plan avisa si supera 100 caracteres pero lo
+        devuelve igual). Sin este tope, un mal reconocimiento rompia el INSERT
+        y se perdia TODO el detalle del registro, no solo el nombre del plan.
+        """
+        limpio = " ".join(str(nombre_plan or "").split())
+        tope = int(getattr(EnvConfig, "BOT_MAX_PLAN_EN_MENSAJE", 80) or 80)
+
+        if len(limpio) <= tope:
+            return limpio
+
+        return limpio[: max(1, tope - 3)].rstrip() + "..."
+
     def _construir_motivo_plan_no_valido(
         self,
         diagnostico,
@@ -163,18 +182,18 @@ class ValidationPlanAction(ActionBase):
         id_tipo_baja,
         etapa,
     ) -> str:
-        nombre_plan_limpio = str(nombre_plan or "").strip()
+        plan = self._plan_corto(nombre_plan)
 
         if diagnostico.error_consulta:
-            return "No fue posible consultar el catálogo de planes."
+            return "No se pudo consultar el catálogo de planes."
 
         if not diagnostico.entrada_valida:
-            return "No fue posible validar el plan extraído."
+            return "No se pudo validar el plan extraído."
 
         if not diagnostico.existe:
-            return f"Plan no encontrado en catálogo: {nombre_plan_limpio}"
+            return f"Plan fuera de catálogo: {plan}"
 
         if not diagnostico.existe_para_lista:
-            return f"Plan no habilitado para este proceso: {nombre_plan_limpio}"
+            return f"Plan no habilitado para la lista: {plan}"
 
-        return f"Plan no habilitado como {etapa}: {nombre_plan_limpio}"
+        return f"Plan no habilitado como {etapa}: {plan}"

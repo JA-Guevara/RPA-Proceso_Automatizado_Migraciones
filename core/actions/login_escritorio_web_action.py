@@ -56,6 +56,42 @@ class LoginEscritorioWebAction(WebActionBase):
         
     async def _validar_inicio(self, page):
         self.logger.info("✅ Validando escritorio")
-        pass
+
+        # Hook que ya existia vacio y ya se llamaba en el momento exacto:
+        # despues del login del portal, antes de esperar_ancla() y del flujo
+        # visual. Aca se instala el interceptor de portapapeles.
+        #
+        # IMPORTANTE: este metodo ya corre DENTRO de conexion.run(), es decir
+        # dentro del event loop de la sesion. Por eso se hace
+        # `await page.evaluate(...)` directo y NO se usa clipboard_service.
+        # Llamar al servicio aca reentraria en conexion.run() sobre el mismo
+        # loop y el proceso se cuelga.
+        #
+        # Regla: conexion.run() solo desde codigo sincronico. Dentro de una
+        # corrutina, await page.evaluate() directo.
+        from shared.tools.clipboard.tap_js import TAP_INSTALAR
+
+        try:
+            salud = await page.evaluate(TAP_INSTALAR) or {}
+        except Exception as e:
+            self.logger.error("❌ No se pudo evaluar el instalador del tap: %s", e)
+            salud = {"ok": False, "motivo": f"evaluate_error: {e}"}
+
+        self.contexto["clipboard_tap_ok"] = bool(salud.get("ok"))
+        self.contexto["clipboard_tap_estado"] = salud.get("estadoCliente")
+        self.contexto["clipboard_tap_detalle"] = salud
+
+        self.logger.info(
+            "📋 Interceptor de portapapeles: ok=%s | motivo=%s | cliente=%s | "
+            "tunel=%s | estado=%s | ya_estaba=%s",
+            salud.get("ok"), salud.get("motivo"), salud.get("clientPath"),
+            salud.get("tunnelHook"), salud.get("estadoCliente"), salud.get("yaEstaba"),
+        )
+
+        if not salud.get("ok"):
+            raise RuntimeError(
+                f"No se pudo instalar el interceptor de portapapeles: "
+                f"{salud.get('motivo', 'desconocido')}"
+            )
 
     

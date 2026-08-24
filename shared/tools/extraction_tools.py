@@ -1,5 +1,4 @@
 import pyautogui
-import pyperclip
 import pytesseract
 import unicodedata
 import logging
@@ -19,6 +18,7 @@ from shared.tools.app_tools import AppTools
 from shared.tools.click_tools import ClickTools
 from shared.tools.basic_tools import BasicTools
 from shared.tools.image_locator import default_locator
+from shared.tools.clipboard import specs as ESPECS
 from config.config import EnvConfig
 
 logger = logging.getLogger(__name__)
@@ -43,6 +43,50 @@ class ExtractionTools:
         texto = re.sub(r'\s+', ' ', texto).strip()
         return texto
 
+    @staticmethod
+    def _flag_env(nombre: str, default: str = "false") -> bool:
+        valor = str(getattr(EnvConfig, nombre, default) or default).strip().lower()
+        return valor in ("1", "true", "si", "sí")
+
+    def _marcar_ocr(self, contexto, campo_destino, no_leible: bool, motivo: str = ""):
+        """
+        Deja constancia de si el OCR pudo leer o no.
+
+        Sin esto, "" significa dos cosas incompatibles: "el campo esta vacio" y
+        "no pude leer". Los tres consumidores de OCR de region (forma_pago,
+        situacion, idctl_actual) no podian distinguirlas, y por eso un fallo
+        tecnico se convertia en un resultado de negocio.
+        """
+        if contexto is None or not campo_destino:
+            return
+        contexto[f"existe_error_ocr_{campo_destino}"] = bool(no_leible)
+        if no_leible and motivo:
+            contexto[f"motivo_error_ocr_{campo_destino}"] = motivo
+
+    def _guardar_evidencia_ocr(self, imagen, nombre_region: str):
+        """Evidencia acotada y con poda. Antes se escribia un PNG en CADA
+        llamada, sin flag y sin limite de archivos."""
+        import glob
+        try:
+            dbg_dir = os.path.join("storage", "ocr_debug")
+            os.makedirs(dbg_dir, exist_ok=True)
+            ts = int(time.time() * 1000)
+            seguro = re.sub(r"[^A-Za-z0-9._-]+", "_", str(nombre_region))[:40]
+            cv2.imwrite(os.path.join(dbg_dir, f"ocr_{seguro}_{ts}.png"), imagen)
+
+            maximo = int(getattr(EnvConfig, "OCR_EVIDENCIA_MAX", 60) or 60)
+            archivos = sorted(
+                glob.glob(os.path.join(dbg_dir, "ocr_*.png")),
+                key=os.path.getmtime, reverse=True,
+            )
+            for viejo in archivos[maximo:]:
+                try:
+                    os.remove(viejo)
+                except OSError:
+                    pass
+        except Exception:
+            logger.debug("No se pudo guardar evidencia OCR", exc_info=True)
+
     def extraer_texto_de_region(
         self,
         nombre_region: str,
@@ -56,7 +100,9 @@ class ExtractionTools:
         ensure_focus: bool = False,
         stable_wait: float = 0.15,
         palabras_validas: Optional[List[str]] = None,
-        umbral_similitud: float = 0.75
+        umbral_similitud: float = 0.75,
+        contexto: Optional[dict] = None,
+        campo_destino: Optional[str] = None,
     ) -> str:
 
         try:
@@ -68,6 +114,7 @@ class ExtractionTools:
                 )
                 if not pos:
                     logger.warning(f"⚠️ Imagen de referencia '{imagen_referencia}' no encontrada.")
+                    self._marcar_ocr(contexto, campo_destino, True, "referencia_no_encontrada")
                     return ""
                 left, top, w_ref, h_ref = map(int, pos)
                 x = left + offset_x
@@ -80,6 +127,7 @@ class ExtractionTools:
 
             if ancho <= 0 or alto <= 0:
                 logger.warning(f"⚠️ Región inválida (ancho={ancho}, alto={alto}) en '{nombre_region}'.")
+                self._marcar_ocr(contexto, campo_destino, True, "region_invalida")
                 return ""
 
             if ensure_focus:
@@ -97,15 +145,25 @@ class ExtractionTools:
             img_resized = cv2.resize(img_gray, None, fx=2, fy=2, interpolation=cv2.INTER_CUBIC)
             _, img_thresh = cv2.threshold(img_resized, 150, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
 
-            ts = int(time.time() * 1000)
-            dbg_dir = os.path.join("assets", "images_debug")
-            os.makedirs(dbg_dir, exist_ok=True)
-            cv2.imwrite(os.path.join(dbg_dir, f"ocr_{nombre_region}_{ts}.png"), img_thresh)
+            # Proporcion de "tinta" en el recorte. Con THRESH_BINARY+OTSU el
+            # fondo claro queda en 255 y el texto oscuro en 0, asi que los
+            # pixeles distintos de cero son fondo.
+            #
+            # Esto es lo que permite distinguir "el campo esta genuinamente
+            # vacio" de "no pude leer el texto que hay". Cuesta un countNonZero,
+            # no una segunda pasada de OCR.
+            tinta = 1.0 - (cv2.countNonZero(img_thresh) / float(img_thresh.size))
+            region_vacia = tinta < float(getattr(EnvConfig, "OCR_UMBRAL_TINTA", 0.005) or 0.005)
+
+            if self._flag_env("OCR_EVIDENCIA"):
+                self._guardar_evidencia_ocr(img_thresh, nombre_region)
 
             config = r'--psm 7 --oem 3'
             texto_crudo = pytesseract.image_to_string(img_thresh, config=config).strip()
             texto_normalizado = self.normalizar_ocr(texto_crudo)
             logger.info(f"🧠 OCR '{nombre_region}': '{texto_crudo}' → '{texto_normalizado}'")
+
+            tri_estado = self._flag_env("OCR_TRI_ESTADO", "true")
 
             if palabras_validas:
                 logger.info(f"🧩 Validación semántica activada: palabras={palabras_validas}, umbral={umbral_similitud}")
@@ -116,18 +174,52 @@ class ExtractionTools:
                     logger.info(f"   🔹 Comparando '{texto_normalizado}' ↔ '{palabra.upper()}': similitud={similitud:.3f}")
 
                 palabra_mejor, puntaje = max(mejores, key=lambda x: x[1])
+
                 if puntaje >= umbral_similitud:
                     if texto_normalizado != palabra_mejor.upper():
                         logger.info(f"🔄 Corrección OCR: '{texto_normalizado}' → '{palabra_mejor.upper()}' (confianza {puntaje:.2f})")
                     texto_normalizado = palabra_mejor.upper()
+                    self._marcar_ocr(contexto, campo_destino, False)
+
+                elif region_vacia:
+                    # Ninguna palabra coincide PERO el recorte no tiene tinta:
+                    # el campo esta realmente vacio, no es un fallo de lectura.
+                    logger.info(
+                        "⬜ Región '%s' sin tinta (%.4f) → vacío confirmado",
+                        nombre_region, tinta,
+                    )
+                    texto_normalizado = ""
+                    self._marcar_ocr(contexto, campo_destino, False)
+
                 else:
-                    logger.warning(f"⚠️ Ninguna coincidencia supera el umbral ({umbral_similitud}); texto sin corrección.")
+                    logger.warning(
+                        "⚠️ OCR ilegible en '%s': ninguna coincidencia supera %s "
+                        "(mejor=%s@%.2f, tinta=%.4f)",
+                        nombre_region, umbral_similitud, palabra_mejor, puntaje, tinta,
+                    )
+                    self._marcar_ocr(
+                        contexto, campo_destino, bool(tri_estado),
+                        "sin_coincidencia_con_tinta",
+                    )
+
+            else:
+                no_leible = (not texto_normalizado) and (not region_vacia)
+                if no_leible:
+                    logger.warning(
+                        "⚠️ OCR vacío con tinta presente en '%s' (tinta=%.4f)",
+                        nombre_region, tinta,
+                    )
+                self._marcar_ocr(
+                    contexto, campo_destino, bool(tri_estado and no_leible),
+                    "ocr_vacio_con_tinta",
+                )
 
             logger.info(f"📋 Texto final '{nombre_region}': '{texto_normalizado}'")
             return texto_normalizado
 
         except Exception as e:
             logger.error(f"❌ Error OCR en región '{nombre_region}': {e}", exc_info=True)
+            self._marcar_ocr(contexto, campo_destino, True, f"excepcion: {e}")
             return ""
 
     def imagen_esta_presente(
@@ -295,10 +387,12 @@ class ExtractionTools:
                 transitorio=transitorio
             )
 
-            self.app_tools.presionar_combinacion_real("ctrl", "c")
-            self.app_tools.esperar(0.2)
-
-            texto = pyperclip.paste().strip()
+            texto = self.basic_tools.copiar_texto_actual(
+                seleccionar_todo=False,
+                limpiar=True,
+                usar_real=True,
+                spec=ESPECS.ERROR_BCCS,
+            )
             lineas = texto.splitlines()
             mensaje_error = lineas[-1] if lineas else "ERROR NO DETECTADO"
             mensaje_error = mensaje_error.strip()
@@ -439,10 +533,12 @@ class ExtractionTools:
                 transitorio=transitorio
             )
 
-            self.app_tools.presionar_combinacion_real("ctrl", "c")
-            self.app_tools.esperar(0.25)
-
-            texto = pyperclip.paste() or ""
+            texto = self.basic_tools.copiar_texto_actual(
+                seleccionar_todo=False,
+                limpiar=False,
+                usar_real=True,
+                spec=ESPECS.PLAN,
+            )
             if limpiar:
                 texto_limpio = texto.strip()
                 texto_limpio = texto_limpio.replace("\n", " ").replace("\r", " ").replace("\t", " ")

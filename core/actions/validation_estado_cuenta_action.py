@@ -1,6 +1,5 @@
-import pyperclip
-
 from core.action_base.action_base import ActionBase
+from shared.tools.clipboard import specs
 
 
 class ValidationEstadoCuentaAction(ActionBase):
@@ -140,10 +139,19 @@ class ValidationEstadoCuentaAction(ActionBase):
             )
 
             self.app_tools.esperar(1)
-            self.app_tools.presionar_combinacion_real("ctrl", "c")
-            self.app_tools.esperar(0.2)
 
-            texto = str(pyperclip.paste() or "").strip().upper()
+            # Antes: ctrl+c + esperar(0.2) + pyperclip.paste(). En web 200 ms
+            # para un viaje de ida y vuelta por el tunel leia el estado del
+            # registro anterior. El spec exige ademas que el primer token sea
+            # AC/PP/PO/PK/EL: un fragmento parcial se descarta y se sigue
+            # esperando.
+            texto = self.basic_tools.copiar_texto_actual(
+                seleccionar_todo=False,
+                limpiar=True,
+                mayusculas=True,
+                usar_real=True,
+                spec=specs.ESTADO_CUENTA,
+            )
             estado_detectado = texto.split()[0] if texto else ""
 
             self.contexto["estado_cuenta_texto_crudo_rpa"] = texto

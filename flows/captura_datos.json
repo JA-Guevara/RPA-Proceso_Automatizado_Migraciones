@@ -13,5 +13,36 @@
   ],
   "reboot_captura_datos": [
     { "action": "press_key", "target": "esc", "repeticiones": 5 }
+  ],
+
+   "_acciones_desactivadas": [
+    {
+      "action": "click",
+      "target": "captura_datos.cuenta_button",
+      "clicks": 1
+    },
+    {
+      "action": "click_y_escribir",
+      "target": "buscar_linea.nro_linea_field",
+      "value": "1593",
+      "offset_x": 80,
+      "clicks": 1
+    },
+    {
+      "action": "press_key",
+      "target": "enter"
+    },
+    {
+      "action": "extract_y_asignar",
+      "target": "captura_datos.ident_individual_field",
+      "campo_destino": "ident_individual",
+      "offset_x": 85,
+      "clicks": 1
+    },
+    {
+      "action": "click",
+      "target": "captura_datos.salir_button",
+      "clicks": 1
+    }
   ]
 }

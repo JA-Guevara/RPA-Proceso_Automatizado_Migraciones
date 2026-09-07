@@ -98,11 +98,30 @@ class MigracionActions:
 
             if not self._captura_de_datos():
                 return self._cerrar_con_reclamo()
+            
+            
 
-            if not self._validar_estado_controlado():
-                cns_cancelado = self.contexto.get("cnsCancelado", False)
-                if not cns_cancelado:
-                    return self._cerrar_con_reclamo()
+            id_tipo_baja = str(self.contexto.get("id_tipo_baja") or "").strip()
+            plan_actual = str(self.contexto.get("plan_actual_rpa") or "").strip()
+
+            omitir_validacion_estado = (
+                id_tipo_baja == "2"
+                and plan_actual == "Plan Comercial LTE Pospago 2 /PLAN_PREPAGO_R"
+            )
+
+            if omitir_validacion_estado:
+                self.logger.info(
+                    "⏭️ Se omite ValidationEstadoControladoAction: "
+                    "id_tipo_baja=2 y plan_actual_rpa=%s",
+                    plan_actual,
+                )
+            else:
+                if not self._validar_estado_controlado():
+                    cns_cancelado = self.contexto.get("cnsCancelado", False)
+                    if not cns_cancelado:
+                        return self._cerrar_con_reclamo()
+                    
+                    
 
             tipo = self.contexto.get("tipo_baja")
             if tipo == "Migración de Post Pago a Pre Pago":

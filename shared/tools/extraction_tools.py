@@ -317,13 +317,6 @@ class ExtractionTools:
                 contexto["mensaje_error"] = mensaje
                 return False
 
-            if fecha_valida.year < 2000:
-                mensaje = f"Fecha demasiado antigua detectada: {fecha_comparacion}"
-                logger.error(mensaje)
-                contexto["existe_error_captura"] = True
-                contexto["mensaje_error"] = mensaje
-                return False
-
             fecha_str = fecha_valida.strftime("%Y-%m-%d")
 
             contexto["existe_error_captura"] = False

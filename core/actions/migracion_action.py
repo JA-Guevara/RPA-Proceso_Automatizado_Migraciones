@@ -203,6 +203,9 @@ class MigracionActions:
             self._cerrar_con_reclamo()
             return False
         EliminacionServiciosAction(self.variables_base, self.contexto).ejecutar()
+        if self.contexto.get("linea_error_migracion", False):
+            self._cerrar_con_reclamo()
+            return False
         EliminacionCreacionAction(self.variables_base, self.contexto).ejecutar()
         return True
 

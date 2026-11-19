@@ -35,7 +35,7 @@ class ServiceTools:
             if referencia:
                 ruta_ref, nombre_ref = self.executor._resolver_imagen(referencia)
                 logger.info(f"🎯 Centrando puntero en referencia: {nombre_ref}")
-                self.clicker.hacer_clic(
+                click_ok = self.clicker.hacer_clic(
                     target=ruta_ref,
                     offset_x=offset_x,
                     offset_y=offset_y,
@@ -43,8 +43,12 @@ class ServiceTools:
                     nombre_logico=nombre_ref,
                     usar_imagen=usar_imagen,
                     raise_error=False,
-                    transitorio=False
+                    transitorio=transitorio
                 )
+                if not click_ok:
+                    logger.warning(f"⚠️ No se encontró la referencia base '{nombre_ref}' para buscar el servicio.")
+                    contexto[key_contexto] = False
+                    return False
                 self.app_tools.esperar(0.3)
 
             for intento in range(max_intentos):

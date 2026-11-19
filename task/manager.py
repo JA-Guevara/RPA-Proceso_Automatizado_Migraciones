@@ -13,6 +13,7 @@ from shared.tools.flow_loader import FlowLoader
 from shared.tools.clipboard import clipboard_service
 from config.images import ImagePaths
 from config.config import EnvConfig
+from infrastructure.remote_desktop.conexion_escritorio import ConexionEscritorio
 
 logger = logging.getLogger(__name__)
 
@@ -129,6 +130,9 @@ class TaskManagerMigracion:
                             # sigue caido: se propaga como falla tecnica.
                             if intento > 1:
                                 clipboard_service.exigir_conexion()
+
+                            # 🖥️ Asegurar que la ventana de escritorio esté en primer plano
+                            ConexionEscritorio.instancia().enfocar()
 
                             migracion = MigracionActions(self.variables_base, contexto)
                             if migracion.ejecutar():

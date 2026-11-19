@@ -8,13 +8,27 @@ class EliminacionServiciosAction(ActionBase):
         self.logger.info("🚀 Iniciando eliminacion_servicios action...")
         self.hora_inicio()
         try:
-            self.executor.ejecutar_bloque("validation")
+            # 1️⃣ Abrir ventana de servicios y confirmar presencia de pantalla_servicios_icon
+            self.executor.ejecutar_bloque("open_servicios")
+
+            if not self.contexto.get("servicios_successful", False):
+                self.logger.warning("⚠️ No se pudo acceder a la pantalla de servicios de BCCS tras los reintentos.")
+                self.executor.ejecutar_bloque("reboot_validation")
+                self.contexto["linea_error_migracion"] = True
+                self.contexto["baja_realizada"] = "Baja Observada"
+                id_sp = self.contexto.get("id_sharepoint", "")
+                self.contexto["mensaje_memo"] = f"Baja observada - ID solicitud: {id_sp}"
+                self.registrar_observacion("La baja no se realizó — no se pudo acceder a la pantalla de servicios en BCCS")
+                return False
+
+            # 2️⃣ Con la pantalla confirmada, buscar si la línea tiene la restricción
+            self.executor.ejecutar_bloque("check_restriccion")
 
             if self.contexto.get("existeRestringirNav", False):
                 self.logger.info("✅ Restricción detectada → ejecutando flow_eliminacion")
                 self.executor.ejecutar_bloque("flow_eliminacion")
                 self.contexto["servicios_eliminados_rpa"] = self.contexto.get("servicios_eliminados_rpa", "") + "Restringir Navegación sin Nominación"
-                return False
+                return True
             else:
                 self.logger.info("📌 Sin restricciones presentes → ejecutando reboot_validation")
                 self.executor.ejecutar_bloque("reboot_validation")

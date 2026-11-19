@@ -68,6 +68,14 @@ class ConexionEscritorio:
 
         return True
 
+    def enfocar(self):
+        """Asegura que el navegador del escritorio remoto esté en primer plano."""
+        if self.modo == MODO_WEB and self._session and self._session.page:
+            try:
+                self.run(self._session.page.bring_to_front())
+            except Exception as e:
+                logger.debug("No se pudo enfocar la sesión web: %s", e)
+
     @property
     def page(self):
         if not self._session:

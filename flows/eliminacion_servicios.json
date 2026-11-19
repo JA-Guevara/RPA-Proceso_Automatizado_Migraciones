@@ -1,6 +1,28 @@
 {
   "meta": {"name": "eliminacion_servicios","retries": 1},
 
+  "open_servicios": [
+    { "action": "wait", "wait_time": 1}, 
+    {
+      "action": "buscar_y_seleccionar_reintento",
+      "target": {
+        "referencia": "eliminacion_servicios.servicios_button",
+        "imagenes": [
+          "eliminacion_servicios.pantalla_servicios_icon"
+        ],
+        "key_contexto": "servicios_successful",
+        "transitorio": true
+      },
+      "clicks_referencia": 3,
+      "clicks_imagen": 1,
+      "max_intentos": 5
+    }
+  ],
+
+  "check_restriccion": [
+    { "action": "buscar_y_seleccionar_servicio", "target": {"referencia": "eliminacion_servicios.servicio_column", "imagenes": ["eliminacion_servicios.restringir_nav_option_a","eliminacion_servicios.restringir_nav_option_b"],"key_contexto": "existeRestringirNav","transitorio": true},"clicks": 1,"max_intentos": 2}
+  ],
+
   "validation": [
     { "action": "wait", "wait_time": 1}, 
     {

@@ -14,7 +14,7 @@ class PreparadorDeContextos:
             logger.error(f"❌ Se esperaba dict en preparar(), pero se recibió {type(tarea)} → {tarea}")
             return {}
 
-        plan_consumo_fijo = getattr(EnvConfig, "PLAN_CONSUMO_POST_A_PRE", "184")
+        plan_consumo_fijo = getattr(EnvConfig, "PLAN_CONSUMO_POST_A_PRE", "1841")
         contexto = {
             "id_migracion": tarea.get("id_migracion"),
             "id_sharepoint": tarea.get("id_sharepoint"),

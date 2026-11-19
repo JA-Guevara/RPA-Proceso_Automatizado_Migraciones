@@ -121,7 +121,7 @@ class EnvConfig:
     # Plan comercial y plan de consumo para Migración de Post Pago a Pre Pago.
     # Modificar directamente aquí el valor por defecto si cambia el plan.
     PLAN_COMERCIAL_POST_A_PRE = os.getenv("PLAN_COMERCIAL_POST_A_PRE", "64")
-    PLAN_CONSUMO_POST_A_PRE = os.getenv("PLAN_CONSUMO_POST_A_PRE", "184")   # 184 para migración post a pre estándar
+    PLAN_CONSUMO_POST_A_PRE = os.getenv("PLAN_CONSUMO_POST_A_PRE", "1841")   # Nuevo plan de consumo vigente (reemplaza a 184 y 186)
 
     # Plan comercial y plan de consumo para Cambio de Post Pago a Pre Pago R.
     PLAN_COMERCIAL_PREPAGO_R = os.getenv("PLAN_COMERCIAL_PREPAGO_R", "79")

@@ -121,10 +121,24 @@ class EnvConfig:
     # Plan comercial y plan de consumo para Migración de Post Pago a Pre Pago.
     # Modificar directamente aquí el valor por defecto si cambia el plan.
     PLAN_COMERCIAL_POST_A_PRE = os.getenv("PLAN_COMERCIAL_POST_A_PRE", "64")
-    PLAN_CONSUMO_POST_A_PRE = os.getenv("PLAN_CONSUMO_POST_A_PRE", "1841")   # antes 184 y 186 dependiendo de la antiguedad
+    PLAN_CONSUMO_POST_A_PRE = os.getenv("PLAN_CONSUMO_POST_A_PRE", "184")   # 184 para migración post a pre estándar
 
     # Plan comercial y plan de consumo para Cambio de Post Pago a Pre Pago R.
     PLAN_COMERCIAL_PREPAGO_R = os.getenv("PLAN_COMERCIAL_PREPAGO_R", "79")
     PLAN_CONSUMO_PREPAGO_R = os.getenv("PLAN_CONSUMO_PREPAGO_R", "2400")
+
+    # ---------------- Parada de Seguridad para Líneas Delicadas ----------------
+    # Si DETENER_EN_ERROR=True, cualquier falla técnica o excepción detiene el bot de inmediato
+    # sin reintentar ni tocar el siguiente registro, protegiendo las líneas de clientes.
+    DETENER_EN_ERROR = os.getenv("DETENER_EN_ERROR", "true").lower() == "true"
+
+    # Si DETENER_EN_OBSERVACION=True, cuando una línea resulte observada ("Baja Observada"
+    # o error de negocio), el bot guarda la observación en la BD, sale limpiamente de BCCS
+    # y detiene la ejecución para permitir validación humana antes de continuar.
+    DETENER_EN_OBSERVACION = os.getenv("DETENER_EN_OBSERVACION", "true").lower() == "true"
+
+    # Control de envío de SMS: si es False, se omite DerivacionSmsAction por completo.
+    # Cuando está en True, se ejecuta en segundo plano (headless) sin abrir ventana visual.
+    ENVIAR_SMS = os.getenv("ENVIAR_SMS", "false").lower() == "true"
     
 

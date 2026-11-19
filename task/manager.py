@@ -106,6 +106,13 @@ class TaskManagerMigracion:
                     except Exception as e:
                         fallos += 1
                         logger.error(f"❌ Error preparando contexto: {e}", exc_info=True)
+                        if getattr(EnvConfig, "DETENER_EN_ERROR", True):
+                            logger.error("🛑 [PARADA DE SEGURIDAD] Error preparando contexto. Ejecución detenida.")
+                            try:
+                                migracion_mgr.ejecutar_final()
+                            except Exception:
+                                pass
+                            return
                         continue
 
                     id_sharepoint = contexto.get("id_sharepoint", "N/A")
@@ -131,6 +138,26 @@ class TaskManagerMigracion:
                                 # Camino defensivo: cierre gestionado dentro de la acción.
                                 exitos += 1
                                 logger.info(f"📋 Registro cerrado por negocio - ID {id_sharepoint}")
+
+                            # 🛑 Parada de seguridad si el registro culminó observado o con error de migración
+                            baja_estado = contexto.get("baja_realizada", "")
+                            es_observada = (
+                                baja_estado == "Baja Observada"
+                                or contexto.get("linea_error_migracion", False)
+                            )
+                            if es_observada and getattr(EnvConfig, "DETENER_EN_OBSERVACION", True):
+                                obs_detalle = contexto.get("mensaje_observacion_rpa", "Sin detalle")
+                                logger.warning(
+                                    f"🛑 [PARADA DE SEGURIDAD] ID {id_sharepoint} (Línea: {contexto.get('nro_linea')}) "
+                                    f"quedó en '{baja_estado}' con motivo: '{obs_detalle}'. "
+                                    f"La ejecución se detiene inmediatamente para validación manual de la línea."
+                                )
+                                try:
+                                    migracion_mgr.ejecutar_final()
+                                except Exception as err_cerrar:
+                                    logger.warning(f"⚠️ Error en cierre de sesión de seguridad: {err_cerrar}")
+                                return
+
                             break
 
                         except Exception as e:
@@ -139,6 +166,25 @@ class TaskManagerMigracion:
                                 e = RPAExceptions.FlujoException(f"{e.__class__.__name__}: {e}")
                             tipo = getattr(e, "tipo_error", "generico")
                             registro_con_fallas = True
+
+                            # 🛑 Parada de seguridad inmediata ante fallas técnicas (líneas delicadas)
+                            if getattr(EnvConfig, "DETENER_EN_ERROR", True):
+                                fallos += 1
+                                logger.error(
+                                    f"🛑 [PARADA DE SEGURIDAD] Falla técnica [{tipo}] en ID {id_sharepoint} "
+                                    f"(Línea: {contexto.get('nro_linea')}): {e}. "
+                                    f"La ejecución se detiene de inmediato para validación manual."
+                                )
+                                self._reportar_excepcion(
+                                    e, id_sharepoint, t0, exitos, fallos,
+                                    motivo=(f"Falla técnica en línea delicada {contexto.get('nro_linea')} (ID {id_sharepoint}). "
+                                            f"Ejecución detenida para validación manual: {e}")
+                                )
+                                try:
+                                    migracion_mgr.ejecutar_final()
+                                except Exception as err_cerrar:
+                                    logger.warning(f"⚠️ Error en cierre de sesión de seguridad: {err_cerrar}")
+                                return
 
                             # 🛑 Guardarraíl: si la migración ya tocó el sistema
                             # remoto, NO se reintenta (riesgo de doble migración).

@@ -1,5 +1,6 @@
 from core.action_base.web_action_base import WebActionBase
 from config.selectors import WebSelectors
+from config.config import EnvConfig
 from infrastructure.browser.browser_session import BrowserSession
 
 
@@ -10,11 +11,16 @@ class DerivacionSmsAction(WebActionBase):
         super().__init__(variables_base, contexto)
 
     def ejecutar(self) -> bool:
+        if not getattr(EnvConfig, "ENVIAR_SMS", False):
+            self.logger.info("⏭️ Derivación SMS omitida por configuración (ENVIAR_SMS=False)")
+            self.contexto["notificacion_baja_rpa"] = False
+            return True
+
         self.hora_inicio()
-        self.logger.info("🌐 Iniciando DerivacionSmsAction")
+        self.logger.info("🌐 Iniciando DerivacionSmsAction en segundo plano (headless)")
 
         try:
-            with BrowserSession(vida="registro") as web:
+            with BrowserSession(vida="registro", headless=True) as web:
                 web.run(self._flujo(web))
 
             self.contexto["notificacion_baja_rpa"] = True

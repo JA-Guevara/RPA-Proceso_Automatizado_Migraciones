@@ -200,6 +200,7 @@ class ImagePaths:
 
         "cod_column": ruta("varificar_crear_servicios", "cod_column.png"),
         "actualizar2_button": ruta("varificar_crear_servicios", "actualizar2_button.png"),
+        "actualizar2": ruta("varificar_crear_servicios", "actualizar2.png"),
         "factura_fija_option_a": ruta("varificar_crear_servicios", "factura_fija_option_a.png"),
         "factura_fija_option_b": ruta("varificar_crear_servicios", "factura_fija_option_b.png"),
         "procesar_button": ruta("varificar_crear_servicios", "procesar_button.png"),
@@ -217,7 +218,9 @@ class ImagePaths:
         "plan_comercial_field": ruta("programar_cambio", "plan_comercial_field.png"),
         "procesar_button": ruta("programar_cambio", "procesar_button.png"),
         "plan_consumo_field": ruta("programar_cambio", "plan_consumo_field.png"),
+        "plan_conusmo_field2": ruta("programar_cambio", "plan_conusmo_field2.png"),
         "tipos_plan_lista": ruta("programar_cambio", "tipos_plan_lista.png"),
+        "tipos_plan_list": ruta("programar_cambio", "tipos_plan_list.png"),
         "inmediato_option": ruta("programar_cambio", "inmediato_option.png"),
         "si_button": ruta("programar_cambio", "si_button.png"),
     }

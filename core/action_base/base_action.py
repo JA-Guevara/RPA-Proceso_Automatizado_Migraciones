@@ -45,10 +45,13 @@ class BaseAction:
         mensaje: str,
         tipo: str = "info",
     ):
+        if not mensaje or not str(mensaje).strip():
+            return
+
         nombre_accion = self.__class__.__name__
 
         mensaje_completo = (
-            f"[{nombre_accion}] {mensaje}"
+            f"[{nombre_accion}] {str(mensaje).strip()}"
         )
 
         self.contexto[

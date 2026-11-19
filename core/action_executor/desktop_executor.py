@@ -42,6 +42,12 @@ class DesktopExecutor:
     # ------------------- Ejecutor -------------------
 
     def ejecutar_bloque(self, bloque: str):
+        if bloque not in self.flow_data:
+            flow_nombre = self.flow_data.get("meta", {}).get("name", "desconocido")
+            mensaje = f"El bloque '{bloque}' no existe en el flujo '{flow_nombre}'."
+            logger.error(f"❌ {mensaje}")
+            raise RPAExceptions.FlujoException(mensaje)
+
         pasos = self.flow_data.get(bloque, [])
 
         if not isinstance(pasos, list):

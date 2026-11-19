@@ -54,7 +54,7 @@ class TaskManagerMigracion:
             "desktop_url": EnvConfig.DESKTOP_URL,
             "desktop_proccess": EnvConfig.DESKTOP_PROCCESS,
         }
-        safe = {k: ("****" if "PASS" in k else v) for k, v in vb.items()}
+        safe = {k: ("****" if any(s in k.lower() for s in ("pass", "pwd", "secret", "token")) else v) for k, v in vb.items()}
         logger.info("🔧 Variables base cargadas:\n" + json.dumps(safe, indent=2, ensure_ascii=False))
         return vb
 

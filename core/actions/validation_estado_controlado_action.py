@@ -352,9 +352,10 @@ class ValidationEstadoControladoAction(ActionBase):
 
                 encontrado = True
 
-                match_saldo = (
-                    saldo == valor_residual
-                )
+                try:
+                    match_saldo = (float(saldo) == float(valor_residual))
+                except (ValueError, TypeError):
+                    match_saldo = (saldo == valor_residual)
 
                 match_estado = (
                     estado == "CANCELADO"

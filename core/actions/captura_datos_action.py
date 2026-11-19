@@ -39,11 +39,14 @@ class CapturaDatosAction(ActionBase):
             if self.contexto.get("existe_error_captura", False):
                 mensaje = self.contexto.get(
                     "mensaje_error",
-                    "Error desconocido en captura de fecha",
+                    "Error desconocido en captura de datos",
                 )
 
+                id_sharepoint = self.contexto.get("id_sharepoint")
                 self.contexto.update({
-                    "estado_final": "ERROR_CAPTURA_FECHA",
+                    "estado_final": "ERROR_CAPTURA_DATOS",
+                    "baja_realizada": "Baja Observada",
+                    "mensaje_memo": f"Baja Observada - ID solicitud: {id_sharepoint}",
                     "validacion_exitosa": False,
                 })
                 self.registrar_observacion(

@@ -1,5 +1,6 @@
 from core.action_base.action_base import ActionBase
 from shared.tools.clipboard import specs
+from shared.tools.exceptions import RPAExceptions
 
 class ValidationFormaPagoAction(ActionBase):
     def __init__(self, variables_base, contexto):
@@ -46,6 +47,14 @@ class ValidationFormaPagoAction(ActionBase):
             self.contexto["forma_pago_anterior_rpa"] = forma_actual
             self.contexto["forma_pago_posterior_rpa"] = "CREDITO"
             return True
+
+        except RPAExceptions.DatosException as e:
+            self.logger.warning(f"⚠️ Validación de forma de pago detenida: {e}")
+            try:
+                self.executor.ejecutar_bloque("reboot_validation")
+            except Exception:
+                pass
+            return False
 
         except Exception as e:
             self.manejar_excepcion(e)
@@ -115,6 +124,12 @@ class ValidationFormaPagoAction(ActionBase):
                 self.contexto["linea_contratos"] = linea_objetiva
             else:
                 self.logger.warning("❌ No se encontró ninguna línea que contenga tanto 'CET' como el número de cuenta.")
+                self.contexto["baja_realizada"] = "Baja Observada"
+                id_sharepoint = self.contexto.get("id_sharepoint")
+                self.contexto["mensaje_memo"] = f"Baja Observada - ID solicitud: {id_sharepoint}"
+                self.registrar_observacion("No se encontró contrato CET correspondiente al número de cuenta.", tipo="error")
+                self.app_tools.presionar_tecla_real("esc", repeticiones=3)
+                raise RPAExceptions.DatosException("No se encontró contrato CET correspondiente al número de cuenta.")
 
             return texto
 

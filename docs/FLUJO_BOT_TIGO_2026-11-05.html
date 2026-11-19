@@ -1,0 +1,622 @@
+<title>Flujo Bot Tigo</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Condensed:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: barra de control fija + lienzo horizontal con pan/zoom (izq→der) + panel de detalle lateral; debajo, hallazgos y estados */
+:root{
+  --bg:#eef1f4; --canvas:#f8fafb; --surface:#ffffff; --ink:#16202a; --ink2:#3a4652; --muted:#66727e;
+  --line:#c6cfd8; --line-soft:#dde3e9; --phase-a:#f1f4f7; --phase-b:#f8fafb;
+  --accent:#0a6a85; --accent-soft:#e1f0f4; --dec-fill:#eef6f8;
+  --mig:#4048b8; --mig-soft:#e9eafb;
+  --ok:#1b7a4b; --ok-soft:#e3f3ea;
+  --warn:#a85a0c; --warn-soft:#fbefe1;
+  --err:#b0283a; --err-soft:#f9e5e8;
+  --find:#b8146f; --find-soft:#fbe4f0;
+  --shadow:0 1px 2px rgba(22,32,42,.06),0 4px 14px rgba(22,32,42,.06);
+  --f-ui:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-node:"IBM Plex Sans Condensed","Arial Narrow",system-ui,sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --bg:#0e1317; --canvas:#121a20; --surface:#18222a; --ink:#e3e9ee; --ink2:#c0cad3; --muted:#8e9ba7;
+  --line:#33424e; --line-soft:#26323b; --phase-a:#141d24; --phase-b:#121a20;
+  --accent:#4fb3cf; --accent-soft:#16313a; --dec-fill:#152a32;
+  --mig:#9aa3ff; --mig-soft:#22264a;
+  --ok:#55c38c; --ok-soft:#163327;
+  --warn:#e59c4f; --warn-soft:#3a2914;
+  --err:#ef7183; --err-soft:#3d1c22;
+  --find:#f26bb5; --find-soft:#3e1730;
+  --shadow:0 1px 2px rgba(0,0,0,.3),0 6px 18px rgba(0,0,0,.25);
+  color-scheme:dark;
+}}
+:root[data-theme="dark"]{
+  --bg:#0e1317; --canvas:#121a20; --surface:#18222a; --ink:#e3e9ee; --ink2:#c0cad3; --muted:#8e9ba7;
+  --line:#33424e; --line-soft:#26323b; --phase-a:#141d24; --phase-b:#121a20;
+  --accent:#4fb3cf; --accent-soft:#16313a; --dec-fill:#152a32;
+  --mig:#9aa3ff; --mig-soft:#22264a;
+  --ok:#55c38c; --ok-soft:#163327;
+  --warn:#e59c4f; --warn-soft:#3a2914;
+  --err:#ef7183; --err-soft:#3d1c22;
+  --find:#f26bb5; --find-soft:#3e1730;
+  --shadow:0 1px 2px rgba(0,0,0,.3),0 6px 18px rgba(0,0,0,.25);
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-ui);font-size:14px;line-height:1.5}
+.wrap{padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:18px 40px;max-width:1600px;margin:0 auto;display:flex;flex-direction:column;gap:18px}
+header.top{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:12px 24px}
+.ttl h1{margin:0;font-size:22px;font-weight:700;letter-spacing:-.01em;text-wrap:balance}
+.ttl p{margin:2px 0 0;color:var(--muted);font-size:13px;max-width:70ch}
+.ttl code,.mono{font-family:var(--f-mono);font-size:.92em}
+.toolbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:var(--surface)}
+.seg button{border:0;background:transparent;color:var(--ink2);font:500 12.5px var(--f-ui);padding:6px 11px;cursor:pointer;border-right:1px solid var(--line-soft)}
+.seg button:last-child{border-right:0}
+.seg button[aria-pressed="true"]{background:var(--accent);color:var(--surface)}
+.seg button:hover:not([aria-pressed="true"]){background:var(--accent-soft)}
+.btn{border:1px solid var(--line);background:var(--surface);color:var(--ink2);font:500 12.5px var(--f-ui);padding:6px 10px;border-radius:8px;cursor:pointer;display:inline-flex;align-items:center;gap:6px}
+.btn:hover{background:var(--accent-soft)}
+.btn[aria-pressed="true"]{border-color:var(--find);color:var(--find);background:var(--find-soft)}
+button:focus-visible,[tabindex]:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.lbl{font:600 10.5px var(--f-ui);letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-right:2px}
+
+.stage{position:relative;height:min(70vh,720px);min-height:430px;background:var(--canvas);border:1px solid var(--line);border-radius:12px;overflow:hidden;box-shadow:var(--shadow)}
+#svg{width:100%;height:100%;display:block;cursor:grab;touch-action:none;user-select:none;-webkit-user-select:none}
+#svg.dragging{cursor:grabbing}
+.hint{position:absolute;left:12px;bottom:10px;font-size:11.5px;color:var(--muted);background:var(--surface);border:1px solid var(--line-soft);padding:3px 8px;border-radius:6px;pointer-events:none}
+.zoomctl{position:absolute;right:12px;bottom:10px;display:flex;gap:6px}
+.zoomctl .btn{padding:5px 9px;font-size:14px;min-width:32px;justify-content:center}
+.legend{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:12px;color:var(--ink2);align-items:center}
+.lg{display:inline-flex;align-items:center;gap:6px}
+.sw{width:18px;height:12px;border-radius:3px;border:1.5px solid;display:inline-block}
+.sw.dia{transform:rotate(45deg) scale(.75);border-radius:2px}
+.ln{width:22px;height:0;border-top:2px solid;display:inline-block}
+
+/* SVG */
+.n-txt{font-family:var(--f-node);font-size:13px;fill:var(--ink);font-weight:500}
+.n-txt.small{font-size:12px}
+.n-sub{font-family:var(--f-mono);font-size:9.5px;fill:var(--muted)}
+.e-lbl{font-family:var(--f-node);font-size:11.5px;font-weight:600;paint-order:stroke;stroke:var(--canvas);stroke-width:4px;stroke-linejoin:round}
+.phase-t{font-family:var(--f-ui);font-size:13px;font-weight:700;letter-spacing:.09em;fill:var(--ink2)}
+.phase-s{font-family:var(--f-mono);font-size:11px;fill:var(--muted)}
+.band-t{font-family:var(--f-ui);font-size:11.5px;font-weight:700;letter-spacing:.08em}
+.chip-t{font-family:var(--f-node);font-size:12px;fill:var(--ink)}
+.node{cursor:pointer}
+.node:hover .shape{filter:brightness(.97)}
+.node.sel .shape{stroke-width:3px}
+.node:focus{outline:none}
+.node:focus-visible .shape{stroke:var(--accent);stroke-width:3px}
+.dim{opacity:.16;transition:opacity .2s}
+.badge{display:none}
+.show-find .badge{display:inline}
+.badge circle{fill:var(--find)}
+.badge text{font:700 11px var(--f-ui);fill:#fff}
+
+/* Panel */
+.panel[hidden]{display:none!important}
+.panel{position:absolute;top:10px;right:10px;bottom:10px;width:min(390px,calc(100% - 20px));background:var(--surface);border:1px solid var(--line);border-radius:10px;box-shadow:var(--shadow);display:flex;flex-direction:column;overflow:hidden;z-index:5}
+.panel-h{display:flex;align-items:flex-start;gap:10px;padding:12px 12px 10px 14px;border-bottom:1px solid var(--line-soft)}
+.panel-h h2{margin:0;font-size:15.5px;line-height:1.3;flex:1;text-wrap:balance}
+.panel-h .kind{display:block;font:600 10.5px var(--f-ui);letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-bottom:2px}
+.x{border:0;background:transparent;color:var(--muted);font-size:20px;line-height:1;cursor:pointer;padding:2px 6px;border-radius:6px}
+.x:hover{background:var(--accent-soft);color:var(--ink)}
+.panel-b{padding:12px 14px 16px;overflow:auto;display:flex;flex-direction:column;gap:12px;font-size:13px;min-width:0}
+.panel-b h3{margin:0 0 4px;font:600 10.5px var(--f-ui);letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.panel-b p{margin:0}
+.files{display:flex;flex-wrap:wrap;gap:4px}
+.files code{font-family:var(--f-mono);font-size:11px;background:var(--accent-soft);color:var(--ink2);padding:1px 6px;border-radius:4px;word-break:break-all}
+.outs{display:flex;flex-direction:column;gap:6px;margin:0;padding:0;list-style:none}
+.outs li{display:grid;grid-template-columns:auto 1fr;gap:8px;align-items:start}
+.tag{font:600 10.5px var(--f-ui);padding:1px 7px;border-radius:10px;white-space:nowrap;border:1px solid}
+.tag.ok{color:var(--ok);border-color:var(--ok);background:var(--ok-soft)}
+.tag.rec{color:var(--warn);border-color:var(--warn);background:var(--warn-soft)}
+.tag.stop{color:var(--err);border-color:var(--err);background:var(--err-soft)}
+.tag.neu{color:var(--ink2);border-color:var(--line);background:var(--phase-a)}
+.tag.mig{color:var(--mig);border-color:var(--mig);background:var(--mig-soft)}
+ul.plain{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:3px}
+.find-box{border:1px solid var(--find);background:var(--find-soft);border-radius:8px;padding:9px 11px;display:flex;flex-direction:column;gap:5px}
+.find-box b{color:var(--find)}
+.ctx{display:flex;flex-wrap:wrap;gap:4px}
+.ctx span{font-family:var(--f-mono);font-size:11px;border:1px solid var(--line);border-radius:4px;padding:0 5px;color:var(--ink2)}
+@media (max-width:640px){
+  .panel{position:fixed;top:auto;left:0;right:0;bottom:0;width:auto;max-height:62vh;border-radius:14px 14px 0 0;padding-bottom:env(safe-area-inset-bottom,0px);padding-left:env(safe-area-inset-left,0px);padding-right:env(safe-area-inset-right,0px)}
+  .hint{display:none}
+}
+
+/* Secciones inferiores */
+section.blk{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px 18px;display:flex;flex-direction:column;gap:12px;min-width:0}
+section.blk h2{margin:0;font-size:16px}
+section.blk > p{margin:0;color:var(--muted);font-size:13px;max-width:90ch}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:12px}
+.fcard{border:1px solid var(--line);border-radius:10px;padding:12px 14px;display:flex;flex-direction:column;gap:7px;min-width:0;background:var(--canvas)}
+.fcard .fh{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.num{width:22px;height:22px;border-radius:50%;background:var(--find);color:#fff;font:700 11.5px var(--f-ui);display:inline-flex;align-items:center;justify-content:center;flex:none}
+.sev{font:600 10.5px var(--f-ui);letter-spacing:.06em;text-transform:uppercase;padding:1px 7px;border-radius:10px;border:1px solid}
+.sev.alta{color:var(--err);border-color:var(--err);background:var(--err-soft)}
+.sev.media{color:var(--warn);border-color:var(--warn);background:var(--warn-soft)}
+.sev.baja{color:var(--ink2);border-color:var(--line);background:var(--phase-a)}
+.fcard h3{margin:0;font-size:14px;flex:1 1 200px;text-wrap:balance}
+.fcard p{margin:0;font-size:13px}
+.fcard .k{font:600 10.5px var(--f-ui);letter-spacing:.07em;text-transform:uppercase;color:var(--muted);margin-right:4px}
+.fcard .go{align-self:flex-start}
+.tblwrap{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:13px;min-width:560px}
+th,td{text-align:left;padding:7px 10px;border-bottom:1px solid var(--line-soft);vertical-align:top}
+th{font:600 10.5px var(--f-ui);letter-spacing:.07em;text-transform:uppercase;color:var(--muted)}
+.filelist{columns:3 240px;gap:18px;font-family:var(--f-mono);font-size:11.5px;color:var(--ink2);margin:0;padding:0;list-style:none}
+.filelist li{break-inside:avoid;padding:1px 0}
+.note{font-size:12px;color:var(--muted)}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <div class="ttl">
+      <h1>Flujo Bot Tigo · Migraciones Post Pago → Pre Pago</h1>
+      <p>Reconstruido del código de <code>Bot - Tigo</code> (<code>task/manager.py</code>, <code>core/actions/migracion_action.py</code>, acciones y <code>flows/*.json</code>). Haz clic en cualquier paso para ver qué valida, qué escribe y en qué archivo está.</p>
+    </div>
+    <div class="toolbar" role="toolbar" aria-label="Controles del diagrama">
+      <span class="lbl">Ir a</span>
+      <div class="seg" id="phases">
+        <button data-ph="all" aria-pressed="true">Todo</button>
+        <button data-ph="orq" aria-pressed="false">Orquestador</button>
+        <button data-ph="val" aria-pressed="false">Validaciones</button>
+        <button data-ph="mig" aria-pressed="false">Migración</button>
+        <button data-ph="cie" aria-pressed="false">Cierre</button>
+        <button data-ph="tec" aria-pressed="false">Fallas técnicas</button>
+      </div>
+      <span class="lbl">Rama</span>
+      <div class="seg" id="routes">
+        <button data-r="all" aria-pressed="true">Ambas</button>
+        <button data-r="post" aria-pressed="false">Post→Pre</button>
+        <button data-r="r" aria-pressed="false">Post→Pre R</button>
+      </div>
+      <button class="btn" id="tgFind" aria-pressed="true">● Hallazgos</button>
+    </div>
+  </header>
+
+  <div class="legend" aria-label="Leyenda">
+    <span class="lg"><span class="sw" style="border-color:var(--line);background:var(--surface)"></span>Paso en BCCS</span>
+    <span class="lg"><span class="sw dia" style="border-color:var(--accent);background:var(--dec-fill)"></span>Validación / decisión</span>
+    <span class="lg"><span class="sw" style="border-color:var(--mig);background:var(--mig-soft)"></span>Modifica la cuenta en BCCS</span>
+    <span class="lg"><span class="sw" style="border-color:var(--warn);background:var(--warn-soft)"></span>Cierre de negocio (reclamo)</span>
+    <span class="lg"><span class="sw" style="border-color:var(--err);background:var(--err-soft)"></span>Detiene el bot + correo</span>
+    <span class="lg"><span class="ln" style="border-color:var(--ok)"></span>Sí / continúa</span>
+    <span class="lg"><span class="ln" style="border-color:var(--warn)"></span>No / rechazo</span>
+    <span class="lg"><span class="ln" style="border-color:var(--err);border-top-style:dashed"></span>Falla técnica</span>
+    <span class="lg"><span class="num" style="width:18px;height:18px;font-size:10px">1</span>Hallazgo a revisar</span>
+  </div>
+
+  <div class="stage" id="stage">
+    <svg id="svg" role="img" aria-label="Diagrama de flujo horizontal del Bot Tigo">
+      <defs id="defs"></defs>
+      <g id="vp"></g>
+    </svg>
+    <div class="hint">Arrastrar: mover · Rueda: desplazar · Ctrl + rueda: zoom</div>
+    <div class="zoomctl">
+      <button class="btn" id="zOut" aria-label="Alejar">−</button>
+      <button class="btn" id="zIn" aria-label="Acercar">+</button>
+      <button class="btn" id="zFit" aria-label="Ajustar a la vista">Ajustar</button>
+    </div>
+    <aside class="panel" id="panel" hidden aria-live="polite">
+      <div class="panel-h"><h2 id="pTitle"><span class="kind" id="pKind"></span><span id="pName"></span></h2><button class="x" id="pClose" aria-label="Cerrar detalle">×</button></div>
+      <div class="panel-b" id="pBody"></div>
+    </aside>
+  </div>
+
+  <section class="blk" id="hallazgos">
+    <h2>Hallazgos para planificar cambios</h2>
+    <p>Comportamientos que se ven al leer el código y que conviene confirmar con negocio antes de tocar. "Hoy" describe lo que hace el código; "A evaluar" es una recomendación, no un hecho.</p>
+    <div class="grid2" id="fgrid"></div>
+  </section>
+
+  <section class="blk">
+    <h2>Estados que escribe en la base de datos</h2>
+    <p>El campo <code class="mono">baja_realizada</code> del contexto se traduce a <code class="mono">id_estado</code> (tabla de estados) y se guarda en la migración; el detalle va a <code class="mono">migracion_detalle</code>.</p>
+    <div class="tblwrap"><table>
+      <thead><tr><th>baja_realizada</th><th>Cuándo ocurre</th><th>¿Carga reclamo?</th><th>¿SMS?</th></tr></thead>
+      <tbody>
+        <tr><td><span class="tag ok">Baja Procesada</span></td><td>Plan asignado final válido tras la migración.</td><td>Sí</td><td>Sí</td></tr>
+        <tr><td><span class="tag rec">Baja Observada</span></td><td>Qvantel, plan no válido, deuda, estado ilegible, forma de pago ilegible, CNS no cancelado, error en paso post a pre, plan final no válido.</td><td>Sí (salvo Qvantel)</td><td>Solo si el plan inicial era válido y falla el final (hallazgo 5)</td></tr>
+        <tr><td><span class="tag rec">Baja Desestimada</span></td><td>Estado de cuenta EL (eliminada), PO (Port Out) o PP (en portación).</td><td>Sí</td><td>No</td></tr>
+        <tr><td><span class="tag rec">Baja Realizada por Otro Canal</span></td><td>El plan actual ya es un plan FINAL del catálogo.</td><td>Sí</td><td>No</td></tr>
+      </tbody>
+    </table></div>
+  </section>
+
+  <section class="blk">
+    <h2>Archivos analizados</h2>
+    <p>Carpeta: <code class="mono">OneDrive - Tecorp\Conecta\Bots - Python\Bot Python - Tigo\Bot - Tigo</code>. No se leyeron <code class="mono">.env</code> ni archivos con credenciales.</p>
+    <ul class="filelist">
+      <li>main.py</li><li>task/manager.py</li><li>application/use_cases/preparar_contexto.py</li>
+      <li>core/actions/migracion_action.py</li><li>core/actions/login_action.py</li><li>core/actions/login_escritorio_web_action.py</li><li>core/actions/logout_action.py</li>
+      <li>core/actions/buscar_linea_action.py</li><li>core/actions/validation_plan_action.py</li><li>core/actions/validation_consumo_action.py</li>
+      <li>core/actions/validation_estado_cuenta_action.py</li><li>core/actions/validation_forma_pago_action.py</li><li>core/actions/captura_datos_action.py</li>
+      <li>core/actions/validation_estado_controlado_action.py</li><li>core/actions/saldo_core_balance_action.py</li><li>core/actions/paso_post_a_pre_action.py</li>
+      <li>core/actions/eliminacion_servicios_action.py</li><li>core/actions/eliminacion_creacion_action.py</li><li>core/actions/validation_idctl_actual_action.py</li>
+      <li>core/actions/verificar_servicio_ldi_900_action.py</li><li>core/actions/crear_servicio_fflte_action.py</li><li>core/actions/programar_cambio_action.py</li>
+      <li>core/actions/carga_reclamos_action.py</li><li>core/actions/derivacion_sms_action.py</li><li>core/action_executor/desktop_executor.py</li>
+      <li>infrastructure/database/adapters/*.py</li><li>infrastructure/database/repositories/*.py</li><li>shared/tools/exceptions.py</li>
+      <li>flows/buscar_linea.json · validation_plan.json · validation_consumo.json</li><li>flows/validation_estado_cuenta.json · validation_forma_pago.json</li><li>flows/captura_datos.json · validation_estado_controlado.json</li>
+      <li>flows/saldo_core_balance.json · paso_post_a_pre.json · validation_idctl_actual.json</li><li>flows/programar_cambio.json · carga_reclamos.json · eliminacion_servicios.json</li>
+      <li>docs/BOT_DOCUMENTACION.md · TRAZABILIDAD.md</li>
+    </ul>
+    <p class="note">Versión de los archivos: la que estaba en OneDrive el 05/11/2026.</p>
+  </section>
+</div>
+
+<script>
+(function(){
+const X = i => 80 + i*240;
+const M = 330;           // carril principal
+const SZ = {process:[184,72], mig:[184,72], db:[184,72], web:[184,72], decision:[204,112], pill:[200,62], stop:[200,62], neutral:[196,58], flag:[156,56], start:[124,58], tdec:[196,100]};
+
+// ---------- NODOS ----------
+const N = [
+  // 1 Orquestador
+  {id:'o_start', t:'start', x:X(0), y:M, l:'Inicio\nmain.py', ph:'orq'},
+  {id:'o_pend', t:'decision', x:X(1), y:M, l:'¿Hay pendientes\npara BOT_NAME?', ph:'orq'},
+  {id:'o_wait', t:'neutral', x:X(1), y:490, l:'Esperar 60 s\ny volver a consultar', ph:'orq'},
+  {id:'o_login', t:'process', x:X(2), y:M, l:'Login\nGuacamole / RDP + BCCS', ph:'orq'},
+  {id:'p_login', t:'stop', x:X(2), y:170, l:'LoginException\n→ correo y detener', ph:'orq'},
+  {id:'o_next', t:'db', x:X(3), y:M, l:'Tomar siguiente\nmigración (prioridad)', ph:'orq'},
+  {id:'o_tunel', t:'decision', x:X(4), y:M, l:'¿Escritorio /\ntúnel sano?', ph:'orq'},
+  {id:'p_tunel', t:'stop', x:X(4), y:170, l:'Falla técnica global\n→ correo y detener', ph:'orq'},
+  {id:'o_ctx', t:'process', x:X(5), y:M, l:'Preparar contexto\nlínea · tipo baja · lista', ph:'orq'},
+  // Fallas técnicas
+  {id:'t_exc', t:'stop', x:X(6), y:125, l:'Excepción en\ncualquier paso', ph:'tec'},
+  {id:'t_reboot', t:'process', x:X(7), y:125, l:'Reboot del flujo\n(Esc) y relanza', ph:'tec'},
+  {id:'t_mig', t:'tdec', x:X(8), y:125, l:'¿migracion_ejecutada\n= true?', ph:'tec'},
+  {id:'t_manual', t:'stop', x:X(9), y:58, l:'Correo + DETENER\nrevisión manual', ph:'tec'},
+  {id:'t_int', t:'tdec', x:X(9), y:190, l:'¿Quedan\nintentos? (máx 3)', ph:'tec'},
+  {id:'t_retry', t:'process', x:X(10), y:190, l:'Logout + login\ncontexto limpio', ph:'tec'},
+  {id:'t_agot', t:'stop', x:X(10), y:58, l:'Correo + DETENER\nintentos agotados', ph:'tec'},
+  {id:'t_freno', t:'stop', x:X(11), y:125, l:'Freno: 3 registros\nseguidos con fallas\n→ DETENER', ph:'tec'},
+  // 2 Validaciones
+  {id:'v_buscar', t:'process', x:X(6), y:M, l:'Buscar línea\nen BCCS', ph:'val'},
+  {id:'v_qv', t:'decision', x:X(7), y:M, l:'¿Error\nQVANTEL?', ph:'val'},
+  {id:'p_qv', t:'pill', x:X(7), y:490, l:'Baja Observada\nmigrada a Qvantel\n(sin reclamo)', ph:'val'},
+  {id:'v_plan', t:'decision', x:X(8), y:M, l:'¿Plan actual\nválido INICIAL?', ph:'val'},
+  {id:'p_plan', t:'pill', x:X(8), y:490, l:'Otro canal · plan\nfuera de catálogo\n→ reclamo', ph:'val'},
+  {id:'v_fact', t:'decision', x:X(9), y:M, l:'¿Facturas\npendientes?', ph:'val'},
+  {id:'p_fact', t:'pill', x:X(9), y:490, l:'Con Deuda\nBaja Observada\n→ reclamo', ph:'val'},
+  {id:'v_estado', t:'decision', x:X(10), y:M, l:'Estado de\ncuenta', ph:'val'},
+  {id:'p_estado', t:'pill', x:X(10), y:490, l:'EL / PO / PP → Desestimada\nilegible → Observada\n→ reclamo', ph:'val'},
+  {id:'v_pago', t:'decision', x:X(11), y:M, l:'Forma\nde pago', ph:'val'},
+  {id:'p_pago', t:'pill', x:X(11), y:490, l:'OCR ilegible\nBaja Observada\n→ reclamo', ph:'val'},
+  {id:'v_cap', t:'process', x:X(12), y:M, l:'Captura de datos\nfecha · ident · producto', ph:'val'},
+  {id:'p_cap', t:'pill', x:X(12), y:490, l:'Error de fecha\n(tras 1 reintento)\n→ reclamo', ph:'val'},
+  {id:'v_omit', t:'decision', x:X(13), y:M, l:'¿Omitir estado\ncontrolado?', ph:'val'},
+  {id:'v_cns', t:'decision', x:X(14), y:M, l:'¿Situación\nPROPIO?', ph:'val'},
+  {id:'v_cnsq', t:'decision', x:X(14), y:490, l:'¿CNS cancelado\ny saldo coincide?', ph:'val'},
+  {id:'p_cns', t:'pill', x:X(14), y:640, l:'CNS no cancelado /\nno encontrado → reclamo', ph:'val'},
+  // 3 Migración
+  {id:'v_tipo', t:'decision', x:X(15), y:M, l:'Tipo de baja', ph:'mig'},
+  {id:'m_saldo', t:'process', x:X(16), y:190, l:'Saldo Core Balance\nbilleteras prepago', ph:'mig', br:'post'},
+  {id:'m_flag', t:'flag', x:X(17), y:190, l:'migracion_ejecutada\n= true', ph:'mig', br:'post'},
+  {id:'m_paso', t:'decision', x:X(18), y:190, l:'Paso Post a Pre\n¿mensaje de error?', ph:'mig', br:'post'},
+  {id:'p_paso', t:'pill', x:X(18), y:50, l:'IDCTL en COR u otro\nerror → Observada\n→ reclamo', ph:'mig', br:'post'},
+  {id:'m_elim', t:'mig', x:X(19), y:190, l:'Eliminar servicio\nRestringir Navegación', ph:'mig', br:'post'},
+  {id:'m_elcr', t:'mig', x:X(20), y:190, l:'Eliminación y\ncreación de cuenta', ph:'mig', br:'post'},
+  {id:'r_idctl', t:'decision', x:X(16), y:470, l:'IDCTL actual\n(Motivo Registración)', ph:'mig', br:'r'},
+  {id:'r_ldi', t:'mig', x:X(17), y:470, l:'Verificar / eliminar\nLDI · LDN 900', ph:'mig', br:'r'},
+  {id:'r_flag', t:'flag', x:X(18), y:470, l:'migracion_ejecutada\n= true', ph:'mig', br:'r'},
+  {id:'r_fflte', t:'mig', x:X(19), y:470, l:'Crear servicio\nFactura Fija LTE', ph:'mig', br:'r'},
+  {id:'r_prog', t:'mig', x:X(20), y:470, l:'Programar cambio\npost a pre', ph:'mig', br:'r'},
+  // 4 Cierre
+  {id:'f_plan', t:'decision', x:X(21), y:M, l:'¿Plan asignado\nválido FINAL?', ph:'cie'},
+  {id:'p_fplan', t:'pill', x:X(21), y:490, l:'Plan final no válido\n(inicial inválido)\n→ reclamo', ph:'cie'},
+  {id:'f_rec', t:'process', x:X(22), y:M, l:'Cargar reclamo\nmotivo 4272 + memo', ph:'cie'},
+  {id:'f_sms', t:'web', x:X(23), y:M, l:'Derivación SMS (web)\nconfirmación de baja', ph:'cie'},
+  {id:'f_bd', t:'db', x:X(24), y:M, l:'Actualizar estado\n+ detalle en SQL Server', ph:'cie'},
+  {id:'f_salir', t:'process', x:X(25), y:M, l:'Salir de la línea\nen BCCS', ph:'cie'},
+  {id:'f_lote', t:'decision', x:X(26), y:M, l:'¿Lote de 30\ncompleto?', ph:'cie'},
+  {id:'f_logout', t:'neutral', x:X(26), y:490, l:'Logout temporal\n↺ volver a pendientes', ph:'cie'},
+  {id:'f_next', t:'neutral', x:X(27), y:M, l:'↺ Siguiente registro\n(¿hay pendientes?)', ph:'cie'},
+];
+const byId = {}; N.forEach(n=>{ const s=SZ[n.t]; n.w=n.w||s[0]; n.h=n.h||s[1]; if(n.l.split('\n').length>2 && (n.t==='pill'||n.t==='stop')) n.h=74; byId[n.id]=n; });
+
+// ---------- ARISTAS ----------
+const E = [
+  {f:'o_start',fp:'r',t:'o_pend',tp:'l'},
+  {f:'o_pend',fp:'r',t:'o_login',tp:'l',k:'yes',lb:'Sí'},
+  {f:'o_pend',fp:'b',t:'o_wait',tp:'t',k:'no',lb:'No'},
+  {f:'o_wait',fp:'l',t:'o_pend',tp:'l',k:'skip',via:[[X(1)-140,490],[X(1)-140,M]]},
+  {f:'o_login',fp:'r',t:'o_next',tp:'l',k:'yes',lb:'OK'},
+  {f:'o_login',fp:'t',t:'p_login',tp:'b',k:'tech',lb:'Falla'},
+  {f:'o_next',fp:'r',t:'o_tunel',tp:'l'},
+  {f:'o_tunel',fp:'r',t:'o_ctx',tp:'l',k:'yes',lb:'Sí'},
+  {f:'o_tunel',fp:'t',t:'p_tunel',tp:'b',k:'tech',lb:'No'},
+  {f:'o_ctx',fp:'r',t:'v_buscar',tp:'l'},
+  // técnico
+  {f:'t_exc',fp:'r',t:'t_reboot',tp:'l',k:'tech'},
+  {f:'t_reboot',fp:'r',t:'t_mig',tp:'l',k:'tech'},
+  {f:'t_mig',fp:'r',t:'t_manual',tp:'l',k:'tech',lb:'Sí'},
+  {f:'t_mig',fp:'b',t:'t_int',tp:'l',k:'tech',lb:'No'},
+  {f:'t_int',fp:'r',t:'t_retry',tp:'l',k:'tech',lb:'Sí'},
+  {f:'t_int',fp:'t',t:'t_agot',tp:'b',k:'tech',lb:'No'},
+  {f:'t_retry',fp:'b',t:'v_buscar',tp:'t',k:'tech',lb:'↺ reintenta el registro desde Buscar línea',via:[[X(10),262],[X(6),262]],lpos:[X(8)+20,256,'middle']},
+  // validaciones
+  {f:'v_buscar',fp:'r',t:'v_qv',tp:'l'},
+  {f:'v_qv',fp:'r',t:'v_plan',tp:'l',k:'yes',lb:'No'},
+  {f:'v_qv',fp:'b',t:'p_qv',tp:'t',k:'no',lb:'Sí'},
+  {f:'v_plan',fp:'r',t:'v_fact',tp:'l',k:'yes',lb:'Válido'},
+  {f:'v_plan',fp:'b',t:'p_plan',tp:'t',k:'no',lb:'No'},
+  {f:'v_fact',fp:'r',t:'v_estado',tp:'l',k:'yes',lb:'0 facturas'},
+  {f:'v_fact',fp:'b',t:'p_fact',tp:'t',k:'no',lb:'> 0'},
+  {f:'v_estado',fp:'r',t:'v_pago',tp:'l',k:'yes',lb:'AC (PK→AC)'},
+  {f:'v_estado',fp:'b',t:'p_estado',tp:'t',k:'no',lb:'No apto'},
+  {f:'v_pago',fp:'r',t:'v_cap',tp:'l',k:'yes',lb:'Crédito*'},
+  {f:'v_pago',fp:'b',t:'p_pago',tp:'t',k:'no',lb:'Ilegible'},
+  {f:'v_cap',fp:'r',t:'v_omit',tp:'l',k:'yes',lb:'OK'},
+  {f:'v_cap',fp:'b',t:'p_cap',tp:'t',k:'no',lb:'Error'},
+  {f:'v_omit',fp:'r',t:'v_cns',tp:'l',k:'yes',lb:'No'},
+  {f:'v_omit',fp:'t',t:'v_tipo',tp:'l',k:'skip',lb:'Sí: se salta',via:[[X(13),252],[X(14)+122,252],[X(14)+122,M]],lpos:[X(13)+120,246,'middle']},
+  {f:'v_cns',fp:'r',t:'v_tipo',tp:'l',k:'yes',lb:'Propio'},
+  {f:'v_cns',fp:'b',t:'v_cnsq',tp:'t',k:'no',lb:'Controlado'},
+  {f:'v_cnsq',fp:'r',t:'v_tipo',tp:'l',k:'yes',lb:'Sí → cambio a Propio',lpos:[X(14)+104,482,'start']},
+  {f:'v_cnsq',fp:'b',t:'p_cns',tp:'t',k:'no',lb:'No'},
+  // migración
+  {f:'v_tipo',fp:'t',t:'m_saldo',tp:'l',k:'yes',lb:'Post Pago → Pre Pago',lpos:[X(15)+10,180,'start'],br:'post'},
+  {f:'m_saldo',fp:'r',t:'m_flag',tp:'l',br:'post',lb:'resultado ignorado',k:'find',lpos:[X(16)+120,146,'middle']},
+  {f:'m_flag',fp:'r',t:'m_paso',tp:'l',br:'post'},
+  {f:'m_paso',fp:'r',t:'m_elim',tp:'l',k:'yes',lb:'Sin error',br:'post'},
+  {f:'m_paso',fp:'t',t:'p_paso',tp:'b',k:'no',lb:'Error no recuperable',br:'post'},
+  {f:'m_elim',fp:'r',t:'m_elcr',tp:'l',br:'post'},
+  {f:'m_elcr',fp:'r',t:'f_plan',tp:'l',br:'post'},
+  {f:'v_tipo',fp:'b',t:'r_idctl',tp:'l',k:'yes',lb:'Post Pago → Pre Pago R',lpos:[X(15)+10,488,'start'],br:'r'},
+  {f:'r_idctl',fp:'r',t:'r_ldi',tp:'l',k:'find',lb:'sigue siempre',br:'r',lpos:[X(16)+122,426,'middle']},
+  {f:'r_ldi',fp:'r',t:'r_flag',tp:'l',br:'r'},
+  {f:'r_flag',fp:'r',t:'r_fflte',tp:'l',br:'r'},
+  {f:'r_fflte',fp:'r',t:'r_prog',tp:'l',br:'r'},
+  {f:'r_prog',fp:'r',t:'f_plan',tp:'l',br:'r'},
+  {f:'v_tipo',fp:'r',t:'f_plan',tp:'l',k:'skip',lb:'Otro texto de tipo: no migra',lpos:[X(18),M-8,'middle']},
+  // cierre
+  {f:'f_plan',fp:'r',t:'f_rec',tp:'l',k:'yes',lb:'Sí · u Observada*'},
+  {f:'f_plan',fp:'b',t:'p_fplan',tp:'t',k:'no',lb:'No'},
+  {f:'f_rec',fp:'r',t:'f_sms',tp:'l'},
+  {f:'f_sms',fp:'r',t:'f_bd',tp:'l'},
+  {f:'f_bd',fp:'r',t:'f_salir',tp:'l'},
+  {f:'f_salir',fp:'r',t:'f_lote',tp:'l'},
+  {f:'f_lote',fp:'r',t:'f_next',tp:'l',k:'no',lb:'No'},
+  {f:'f_lote',fp:'b',t:'f_logout',tp:'t',k:'yes',lb:'Sí'},
+];
+// caídas a la banda de reclamo
+const BAND_Y = 700;
+['p_qv','p_plan','p_fact','p_estado','p_pago','p_cap','p_cns','p_fplan'].forEach(id=>{
+  E.push({f:id,fp:'b',pt:[byId[id].x,BAND_Y],k:'drop',lb: id==='p_qv'?'solo BD':''});
+});
+
+// ---------- DETALLE ----------
+const D = {
+ o_start:{k:'Inicio',f:['main.py','task/manager.py'],d:'Configura el log, captura Ctrl+C y arranca TaskManagerMigracion().ejecutar(), un ciclo infinito.',li:['Lote máximo: 30 registros por sesión','Reintentos técnicos por registro: 3','Espera sin pendientes: 60 s · tras falla: 10 s','Freno sistémico: 3 registros seguidos con fallas']},
+ o_pend:{k:'Decisión',f:['task/manager.py','infrastructure/database/adapters/vista_sql_adapter.py','repositories/vista_repository.py'],d:'Consulta la vista de pendientes (BOT_VISTA) filtrando lote = BOT_NAME.',o:[['ok','Sí','Hace login e inicia el ciclo de registros.'],['neu','No','Espera 60 s y vuelve a consultar.']],fd:10},
+ o_wait:{k:'Espera',f:['task/manager.py'],d:'time.sleep(espera_post_logout = 60 s). También se usa cuando el ciclo activo se queda sin pendientes: primero hace logout y luego espera.'},
+ o_login:{k:'Proceso',f:['core/actions/login_action.py','core/actions/login_escritorio_web_action.py','infrastructure/remote_desktop/conexion_escritorio.py','flows/login.json'],d:'Conecta el escritorio remoto (RDP o web por Guacamole). En modo web hace login en el portal con Playwright e instala el interceptor de portapapeles. Espera la imagen ancla del escritorio y ejecuta el bloque "flow" de login (terminal y BCCS).',o:[['ok','OK','Sesión lista, empieza el ciclo de registros.'],['stop','Falla','Ejecuta reboot_login y lanza LoginException → correo a MAIL_LOGIN y el servicio se detiene.']],cx:['conexion_escritorio_activa','conexion_escritorio_modo','clipboard_tap_ok']},
+ p_login:{k:'Detiene',f:['task/manager.py → _reportar_excepcion'],d:'La excepción sube al try global del ciclo: se envía correo con tipo de error, éxitos/fallos y tiempo, y el servicio termina (break).'},
+ o_next:{k:'Base de datos',f:['vista_sql_adapter.py → obtener_siguiente_migracion','vista_repository.py'],d:'Toma un registro de la vista con lote = BOT_NAME. Ordena por la prioridad de PRIORIDAD_BAJAS (según nombre_lista) y luego por id_migracion ascendente. Si no devuelve nada, espera 30 s.',cx:['id_migracion','id_sharepoint','nro_linea','id_tipo_lista','nombre_lista','id_tipo_baja','nombre_tipo_baja','monto_valor_residual','lote']},
+ o_tunel:{k:'Decisión',f:['shared/tools/clipboard/service.py → exigir_conexion()'],d:'Cortafuegos: antes de tocar el registro verifica que el túnel del escritorio web siga vivo, para no hacer clic sobre una pantalla congelada. En modo RDP no hace nada.',o:[['ok','Sí','Prepara el contexto.'],['stop','No','En el primer intento la excepción queda fuera del try del registro: correo "GLOBAL" y el servicio se detiene. En un reintento cuenta como falla técnica.']]},
+ p_tunel:{k:'Detiene',f:['task/manager.py'],d:'Mismo reporte por correo que cualquier error global; el bot no sigue con otros registros.'},
+ o_ctx:{k:'Proceso',f:['application/use_cases/preparar_contexto.py'],d:'Arma el diccionario de contexto que viaja por todas las acciones.',cx:['id_migracion','id_sharepoint','nro_linea','id_tipo_baja','tipo_baja','id_tipo_lista','lote'],o:[['neu','Error','Suma un fallo y pasa al siguiente registro (sin correo).']],fd:2},
+ t_exc:{k:'Falla técnica',f:['shared/tools/exceptions.py','task/manager.py'],d:'Cualquier acción puede lanzar una excepción (imagen no encontrada, clic, timeout, portapapeles). Lo no tipificado se normaliza como FlujoException.',li:['interfaz → MAIL_INTERFAZ','datos → MAIL_DATOS','login → MAIL_LOGIN','flujo → MAIL_FLUJO','comunicación → MAIL_COMUNICACION']},
+ t_reboot:{k:'Recuperación local',f:['core/actions/*_action.py (bloque reboot_* del flow)'],d:'Cada acción, ante excepción, ejecuta su bloque de reinicio del JSON (normalmente Esc una o varias veces) y relanza la excepción hacia el TaskManager.'},
+ t_mig:{k:'Guardarraíl',f:['task/manager.py'],d:'Si el contexto ya tiene migracion_ejecutada = true, la cuenta pudo cambiar en BCCS. No se reintenta para evitar una doble migración.',o:[['stop','Sí','Correo "REQUIERE REVISIÓN MANUAL" y el servicio se detiene.'],['neu','No','Evalúa si quedan intentos.']]},
+ t_manual:{k:'Detiene',f:['task/manager.py → _reportar_excepcion'],d:'Se detiene todo el servicio, no solo el registro. El registro queda sin estado final hasta que alguien lo revise.'},
+ t_int:{k:'Decisión',f:['task/manager.py'],d:'reintentos_max = 3 por registro, solo para fallas técnicas. Los cierres de negocio (reclamo, observada) no se reintentan.',o:[['ok','Sí','Recupera la sesión y reintenta.'],['stop','No','Correo "agotó 3 intentos técnicos" y detiene.']]},
+ t_retry:{k:'Recuperación',f:['task/manager.py → _recuperar_sesion'],d:'Logout (best-effort), espera 10 s y login. Si el login falla, correo y detiene. Si funciona, rearma el contexto desde el registro original y vuelve a empezar en Buscar línea.'},
+ t_agot:{k:'Detiene',f:['task/manager.py'],d:'Se detiene el servicio con el detalle del último error.'},
+ t_freno:{k:'Freno sistémico',f:['task/manager.py'],d:'Cuenta registros consecutivos que tuvieron al menos una falla técnica, aunque se hayan recuperado. Al llegar a 3 asume entorno inestable (RDP/BCCS caído), envía correo de ComunicacionException y detiene. Un registro sin fallas reinicia el contador.'},
+ v_buscar:{k:'Proceso',f:['core/actions/buscar_linea_action.py','flows/buscar_linea.json (flow)'],d:'Abre la búsqueda, escribe nro_linea y procesa. Luego busca la imagen de error de Qvantel.',cx:['existe_busqueda','existe_error_qvantel']},
+ v_qv:{k:'Validación',f:['buscar_linea_action.py','migracion_action.py → _cerrar_con_reclamo_inicial'],d:'Detecta si la cuenta ya fue migrada a Qvantel.',o:[['rec','Sí','baja_realizada = "Baja Observada", observación "La cuenta esta migrada a Qvantel." Marca hora fin, actualiza estado y detalle. No carga reclamo ni sale de la línea.'],['ok','No','Valida el plan.']],fd:9},
+ p_qv:{k:'Cierre',f:['migracion_action.py → _cerrar_con_reclamo_inicial'],d:'Cierre solo en BD: hora fin, actualizar estado y registrar detalle.'},
+ v_plan:{k:'Validación',f:['core/actions/validation_plan_action.py (extraer_inicial)','flows/validation_plan.json (extraer_plan_actual)','infrastructure/database/repositories/plan_repository.py'],d:'Lee el plan actual de la pantalla (reintenta una vez si la captura falla) y lo busca en el catálogo de planes para el id_tipo_lista.',o:[['ok','INICIAL','El plan está habilitado como inicial: sigue.'],['rec','FINAL','Ya está en un plan final: "Baja Realizada por Otro Canal", observación "Línea ya migrada por otro canal" → reclamo.'],['rec','Ninguno','"Baja Observada" con motivo: plan fuera de catálogo, no habilitado para la lista, no habilitado como INICIAL ni FINAL, o no se pudo consultar el catálogo → reclamo.']],cx:['plan_actual_rpa','plan_valido','validacion_exitosa']},
+ p_plan:{k:'Cierre con reclamo',f:['migracion_action.py → _cerrar_con_reclamo'],d:'Ver la banda "Cierre con reclamo" para los pasos.'},
+ v_fact:{k:'Validación',f:['core/actions/validation_consumo_action.py','flows/validation_consumo.json'],d:'Copia la grilla de facturas y cuenta las filas que contienen "pendiente". Una grilla vacía cuenta como 0 facturas.',o:[['ok','0','deuda_pendiente = "Sin Deuda": sigue.'],['rec','> 0','"Baja Observada", "Con Deuda", observación "Línea presenta N factura(s) pendientes de pago" → reclamo.']],cx:['facturas_pendientes_rpa','deuda_pendiente']},
+ p_fact:{k:'Cierre con reclamo',f:['migracion_action.py'],d:'Ver la banda "Cierre con reclamo".'},
+ v_estado:{k:'Validación',f:['core/actions/validation_estado_cuenta_action.py','flows/validation_estado_cuenta.json'],d:'Lee el estado de la cuenta y toma el primer token. Solo acepta AC, PP, PO, PK o EL; cualquier otro texto se trata como lectura inválida.',o:[['ok','AC','Sigue sin cambios.'],['mig','PK','Ejecuta flow_pre-eliminacion (levanta pre-eliminado) y queda como AC.'],['rec','EL','"Baja Desestimada": línea eliminada → reclamo.'],['rec','PO','"Baja Desestimada": la línea hizo Port Out → reclamo.'],['rec','PP','"Baja Desestimada": en proceso de portación → reclamo.'],['rec','Ilegible','"Baja Observada": error al detectar el estado → reclamo.']],cx:['estado_extraido_rpa','estado_cuenta_anterior_rpa','estado_cuenta_posterior_rpa','error_de_estado'],fd:7},
+ p_estado:{k:'Cierre con reclamo',f:['migracion_action.py'],d:'Ver la banda "Cierre con reclamo".'},
+ v_pago:{k:'Validación',f:['core/actions/validation_forma_pago_action.py','flows/validation_forma_pago.json'],d:'OCR del campo forma de pago, con palabras válidas "Credito" y "Debito Automatico".',o:[['ok','Crédito / vacío','No se cambia.'],['mig','Otra (débito)','Cambia a CRÉDITO: Modificaciones → Contrato → fila con "CET" y el número de cuenta → forma de pago Crédito, tipo documento 1 → procesar.'],['rec','Ilegible','"Baja Observada": OCR ilegible → reclamo.']],cx:['forma_pago_rpa','forma_pago_anterior_rpa','forma_pago_posterior_rpa'],fd:11},
+ p_pago:{k:'Cierre con reclamo',f:['migracion_action.py'],d:'Ver la banda "Cierre con reclamo".'},
+ v_cap:{k:'Proceso',f:['core/actions/captura_datos_action.py','flows/captura_datos.json'],d:'Extrae fecha hábil y antigüedad, identificación individual, tipo de cuenta y producto (los usa luego el cambio a Propio). Si la fecha falla, reintenta el bloque una vez.',o:[['ok','OK','Sigue.'],['rec','Error x2','estado_final = ERROR_CAPTURA_FECHA, observación de error → reclamo.']],cx:['fecha_habil','antiguedad','ident_individual','tipo_cuenta','producto'],fd:3},
+ p_cap:{k:'Cierre con reclamo',f:['migracion_action.py'],d:'Ver la banda "Cierre con reclamo" y el hallazgo 3.'},
+ v_omit:{k:'Decisión',f:['core/actions/migracion_action.py'],d:'Se salta la validación de estado controlado solo si id_tipo_baja = "2" y plan_actual_rpa es exactamente "Plan Comercial LTE Pospago 2 /PLAN_PREPAGO_R".',o:[['neu','Sí','Va directo al tipo de baja.'],['ok','No','Valida situación de la cuenta.']],fd:8},
+ v_cns:{k:'Validación',f:['core/actions/validation_estado_controlado_action.py','flows/validation_estado_controlado.json (validation)'],d:'OCR de la situación de la cuenta, con palabras válidas "Propio" y "Controlado".',o:[['ok','PROPIO','Sigue sin cambios.'],['neu','Otra','Revisa el CNS en Ventas.']],cx:['situacion','situacion_cuenta_anterior_rpa','situacion_cuenta_posterior_rpa']},
+ v_cnsq:{k:'Validación',f:['validation_estado_controlado_action.py → extraer_situacion_ventas','flows/validation_estado_controlado.json (flow - validacionCNS, flow - cambioPropio)'],d:'En Ventas copia la grilla y busca la fila con tipo = CNS y cuenta (columna 6) = nro_linea. Exige saldo = valor_residual y estado CANCELADO.',o:[['mig','Sí','flow - cambioPropio: cambio de equipo sin comprobante → Propios, con producto, ident_individual y tipo_cuenta capturados.'],['rec','No','"Baja Observada": CNS no cancelado, no encontrado o sin texto capturado → reclamo.']],cx:['cnsCancelado','valor_residual','tipo_cns'],fd:2},
+ p_cns:{k:'Cierre con reclamo',f:['migracion_action.py'],d:'Ver la banda "Cierre con reclamo".'},
+ v_tipo:{k:'Decisión',f:['core/actions/migracion_action.py'],d:'Compara el texto de tipo_baja (nombre_tipo_baja de la vista).',o:[['ok','Migración de Post Pago a Pre Pago','Rama A (arriba).'],['ok','Cambio de Post Pago a Pre Pago R','Rama B (abajo).'],['neu','Otro texto','No ejecuta migración y pasa directo a validar plan final.']],fd:8},
+ m_saldo:{k:'Proceso',f:['core/actions/saldo_core_balance_action.py','flows/saldo_core_balance.json'],d:'Consulta Información Switch (prepago) y refresca hasta 5 veces esperando el mensaje de éxito. Si lo obtiene, extrae las billeteras con valor mayor a 0 (excluye algunas) hacia billetera_prepago_rpa.',o:[['ok','Éxito','Guarda billeteras y sale.'],['neu','Sin éxito','Pone memo "DSP *LINEA* FEATURE (DSPCDOM)", Esc y devuelve False. La rama no revisa el resultado y sigue.']],cx:['billetera_successful','billetera_prepago_rpa'],fd:4},
+ m_flag:{k:'Marca',f:['core/actions/migracion_action.py → _migracion_post_pre3'],d:'Desde aquí cualquier falla técnica ya no se reintenta: correo de revisión manual y el servicio se detiene (evita doble migración).'},
+ m_paso:{k:'Modifica BCCS',f:['core/actions/paso_post_a_pre_action.py','flows/paso_post_a_pre.json'],d:'Procesos → Paso de cuenta y lee el mensaje de error de la pantalla.',o:[['mig','Sin error','flow_post_a_pre: plan comercial 64, plan de consumo $codigo_plan_consumo_asignados_rpa, motivo Migración → Migración postpago → procesar (espera 12 s).'],['mig','Cuenta bloqueada','Liberar cuenta, valida otra vez y ejecuta el paso.'],['rec','IDCTL inválido','"Baja Observada": IDCTL está en COR → reclamo.'],['rec','Otro error','"Baja Observada" con el texto del error → reclamo.']],cx:['existe_error','mensaje_error','linea_error_migracion']},
+ p_paso:{k:'Cierre con reclamo',f:['migracion_action.py → _migracion_post_pre3'],d:'linea_error_migracion = true → _cerrar_con_reclamo. El registro se da por atendido (no es falla técnica).'},
+ m_elim:{k:'Modifica BCCS',f:['core/actions/eliminacion_servicios_action.py','flows/eliminacion_servicios.json'],d:'Si existe el servicio "Restringir Navegación sin Nominación", lo elimina. Si no, solo Esc.',cx:['existeRestringirNav','servicios_eliminados_rpa']},
+ m_elcr:{k:'Modifica BCCS',f:['core/actions/eliminacion_creacion_action.py','flows/eliminacion_creacion.json'],d:'Ejecuta la eliminación y creación de cuenta y lo anota en servicios_asignados_rpa.'},
+ r_idctl:{k:'Validación',f:['core/actions/validation_idctl_actual_action.py','flows/validation_idctl_actual.json'],d:'OCR del Motivo de Registración (IDCTL).',o:[['mig','≠ COR','Revisa planes programados; si hay un cambio "Pendiente" lo elimina (flow_cambio_plan).'],['rec','COR / ilegible','Marca "Baja Observada" y devuelve False…'],['neu','Pero','…_migracion_post_preR no revisa el resultado y continúa con LDI, FFLTE y programar cambio.']],cx:['idctl_actual_rpa','existe_cambio_pendiente_rpa'],fd:1},
+ r_ldi:{k:'Modifica BCCS',f:['core/actions/verificar_servicio_ldi_900_action.py','flows/verificar_servicio_ldi_900.json'],d:'Si existe el servicio LDI/LDN 900 lo elimina y lo anota en servicios_eliminados_rpa.'},
+ r_flag:{k:'Marca',f:['core/actions/migracion_action.py → _migracion_post_preR'],d:'Desde aquí cualquier falla técnica ya no se reintenta: correo de revisión manual y detiene.'},
+ r_fflte:{k:'Modifica BCCS',f:['core/actions/crear_servicio_fflte_action.py','flows/crear_servicio_fflte.json'],d:'Valida el servicio Factura Fija LTE.',o:[['mig','Disponible','Lo crea y lo anota en servicios_asignados_rpa.'],['mig','Bloqueada','Desbloqueo, valida otra vez y crea.'],['neu','Otro error','existe_error = true, Esc y devuelve True: el flujo sigue.']],fd:6},
+ r_prog:{k:'Modifica BCCS',f:['core/actions/programar_cambio_action.py','flows/programar_cambio.json'],d:'Valida y programa el cambio post a pre.',o:[['mig','Sin error','Ejecuta flow_post_a_pre.'],['mig','Bloqueada','Desbloqueo y reintento; si vuelve a fallar, Esc y devuelve False.'],['neu','Otro error / excepción','Registra observación y devuelve False (también ante excepción). La rama no revisa el resultado.']],fd:6},
+ f_plan:{k:'Validación',f:['core/actions/validation_plan_action.py (extraer_final)','flows/validation_plan.json (extraer_plan_asignado)'],d:'Lee el plan asignado y lo valida como FINAL en el catálogo para la lista.',o:[['ok','Válido','"Baja Procesada", memo "<tipo_baja> - ID solicitud", observación "Migración realizada correctamente".'],['rec','No, inicial válido','"Baja Observada" con el motivo… pero devuelve True y sigue a Finalizar (reclamo + SMS).'],['rec','No, inicial inválido','Cierre con reclamo.']],cx:['plan_asignado_rpa','plan_valido','validacion_exitosa'],fd:5},
+ p_fplan:{k:'Cierre con reclamo',f:['migracion_action.py'],d:'Ver la banda "Cierre con reclamo".'},
+ f_rec:{k:'Proceso',f:['core/actions/carga_reclamos_action.py','flows/carga_reclamos.json'],d:'Reclamos → motivo 4272 → carga el memo ($mensaje_memo) → aceptar → crear.',o:[['neu','Falla','No detiene: queda en la observación "Migración OK; falló carga de reclamo".']]},
+ f_sms:{k:'Proceso web',f:['core/actions/derivacion_sms_action.py','config/selectors.py','infrastructure/browser/browser_session.py'],d:'Con Playwright: login en el sistema SMS, Derivaciones → Derivar consulta → cuenta = nro_linea → plantilla "Bajas Móvil Post Pago" / confirmación de baja → agregar → enviar → logout.',o:[['ok','OK','notificacion_baja_rpa = true.'],['neu','Falla','notificacion_baja_rpa = false + observación; no detiene.']]},
+ f_bd:{k:'Base de datos',f:['infrastructure/database/adapters/estado_migracion_adapter.py','infrastructure/database/adapters/migraciones_adapter.py','repositories/migracion_detalle_repository.py'],d:'Busca el id del estado por el nombre en baja_realizada y actualiza la migración. Luego inserta el detalle con todo lo capturado (planes, estados, forma de pago, servicios, horas, observación).',o:[['neu','Sin baja_realizada','No actualiza el estado (solo log de error).']]},
+ f_salir:{k:'Proceso',f:['buscar_linea_action.py (modo salir)','flows/buscar_linea.json (salir_buscar_linea)'],d:'Clic en salir de BCCS. Si falla no detiene: el registro ya está guardado y se anota en la observación.'},
+ f_lote:{k:'Decisión',f:['task/manager.py'],d:'Cuenta registros atendidos en la sesión.',o:[['neu','Sí (30)','Logout temporal, espera 5 s y vuelve a consultar pendientes.'],['neu','No','Espera 1 s y toma el siguiente registro (si ya no hay pendientes, logout y espera 60 s).']]},
+ f_logout:{k:'Ciclo',f:['task/manager.py'],d:'Cierra sesión y vuelve al inicio del ciclo: ¿hay pendientes?'},
+ f_next:{k:'Ciclo',f:['task/manager.py'],d:'Vuelve a "¿Hay pendientes?" dentro de la sesión activa y toma el siguiente registro.'},
+ band:{k:'Rutina común',f:['core/actions/migracion_action.py → _cerrar_con_reclamo'],d:'Todos los rechazos de negocio terminan aquí y el registro se da por atendido (no se reintenta ni detiene el bot).',li:['1. Cargar reclamo en BCCS (motivo 4272 + memo)','2. Marcar hora fin','3. Actualizar estado de la migración según baja_realizada','4. Registrar detalle en migracion_detalle','5. Salir de la línea (si falla, se anota y sigue)','Qvantel usa una variante: solo pasos 2, 3 y 4.']},
+};
+
+// ---------- HALLAZGOS ----------
+const F = [
+ {n:1,s:'alta',node:'r_idctl',t:'Rama Pre R sigue aunque el IDCTL esté en COR',hoy:'ValidationIdctlActualAction marca "Baja Observada" y devuelve False cuando el IDCTL es COR o no se puede leer, pero _migracion_post_preR no revisa ese resultado: marca migracion_ejecutada, crea FFLTE y programa el cambio.',ev:'Cortar la rama con _cerrar_con_reclamo cuando devuelva False, como hace la rama Post→Pre con linea_error_migracion.'},
+ {n:2,s:'alta',node:'v_cnsq',t:'Saldo del CNS se compara siempre contra "0"',hoy:'La validación CNS exige saldo = contexto["valor_residual"], pero preparar_contexto no copia ese campo. La vista sí trae monto_valor_residual. Al faltar, el valor por defecto es "0". tipo_cns también usa su valor por defecto "CNS".',ev:'Mapear monto_valor_residual → valor_residual en preparar_contexto y normalizar el formato decimal antes de comparar.'},
+ {n:3,s:'alta',node:'v_cap',t:'Error de captura cierra sin estado en BD',hoy:'Si la captura de fecha falla dos veces, CapturaDatosAction no asigna baja_realizada ni mensaje_memo. En ese punto baja_realizada viene vacío de las validaciones anteriores, y actualizar_estado_migracion no actualiza el estado si falta. El reclamo se carga con memo vacío.',ev:'Asignar "Baja Observada" y memo en ese caso. Verificar si la vista vuelve a entregar el registro, porque podría reprocesarse en bucle.'},
+ {n:4,s:'media',node:'m_saldo',t:'Falla de Saldo Core Balance no detiene la migración',hoy:'Si no aparece el mensaje de éxito, la acción devuelve False y escribe el memo "DSP *LINEA* FEATURE (DSPCDOM)", pero _migracion_post_pre3 ignora el resultado y ejecuta el paso post a pre. El memo se sobrescribe después.',ev:'Definir con negocio si sin billeteras consultadas se debe continuar. Si no, cerrar con reclamo antes de marcar migracion_ejecutada.'},
+ {n:5,s:'media',node:'f_plan',t:'Plan final no válido igual envía SMS de confirmación',hoy:'Si el plan inicial era válido y el final no, el estado queda "Baja Observada" pero el método devuelve True: se carga reclamo y se envía el SMS de confirmación de baja.',ev:'Confirmar si en "Observada" debe enviarse el SMS. Si no, separar el camino o condicionar la derivación a "Baja Procesada".'},
+ {n:6,s:'media',node:'r_prog',node2:'r_fflte',t:'Errores en FFLTE y Programar cambio no cortan el flujo',hoy:'CrearServicioFflte marca existe_error y devuelve True. ProgramarCambio devuelve False ante error o excepción (no relanza), así que no hay reintento técnico ni correo. Al final decide la validación del plan final.',ev:'Revisar sus valores de retorno en _migracion_post_preR y decidir qué errores cierran con reclamo y cuáles deben subir como falla técnica.'},
+ {n:7,s:'media',node:'v_estado',t:'Cambio de estado a AC nunca se ejecuta',hoy:'Solo se aceptan AC, PP, PO, PK y EL. Todos tienen su caso antes del bloque "estado distinto de AC", por lo que validation2 y flow_distinto_AC no se ejecutan. Un estado como suspendido termina como "Error al detectar el estado".',ev:'Si existen otros estados que deben pasarse a AC, agregarlos a ESTADOS_VALIDOS. Si no, eliminar el código muerto.'},
+ {n:8,s:'baja',node:'v_tipo',node2:'v_omit',t:'Decisiones por texto exacto',hoy:'La rama de migración depende del texto exacto de nombre_tipo_baja, y la omisión del estado controlado del texto exacto del plan. Un cambio de redacción en BD o un OCR distinto hace que no migre (va directo al plan final) o que no omita.',ev:'Decidir por id_tipo_baja / id de plan en lugar del nombre, y registrar observación explícita cuando el tipo no se reconozca.'},
+ {n:9,s:'baja',node:'v_qv',t:'Qvantel cierra sin reclamo ni salida de línea',hoy:'_cerrar_con_reclamo_inicial solo guarda en BD. No carga reclamo ni ejecuta "salir de la línea".',ev:'Confirmar que es intencional. Si no, unificar con _cerrar_con_reclamo.'},
+ {n:10,s:'baja',node:'o_pend',t:'Error de BD se ve como "sin pendientes"',hoy:'hay_pendientes_para_bot y obtener_siguiente_migracion devuelven False/None si falla la consulta. El bot espera y reintenta sin avisar por correo.',ev:'Contar errores consecutivos de BD y notificar al superar un umbral.'},
+ {n:11,s:'baja',node:'v_pago',t:'Cambio de forma de pago sin fila encontrada',hoy:'Si en la grilla de contratos no hay una fila con "CET" y el número de cuenta, solo se registra un aviso y el flujo sigue haciendo clic en la fila seleccionada.',ev:'Cerrar con reclamo u observación cuando no se encuentre la fila.'},
+];
+const findByNode = {}; F.forEach(f=>{ (findByNode[f.node]=findByNode[f.node]||[]).push(f.n); if(f.node2)(findByNode[f.node2]=findByNode[f.node2]||[]).push(f.n); });
+
+// ---------- RENDER ----------
+const NS='http://www.w3.org/2000/svg';
+const svg=document.getElementById('svg'), vp=document.getElementById('vp'), defs=document.getElementById('defs');
+const el=(n,a={},p)=>{const e=document.createElementNS(NS,n);for(const k in a)e.setAttribute(k,a[k]);if(p)p.appendChild(e);return e;};
+const KC={main:'var(--ink2)',yes:'var(--ok)',no:'var(--warn)',tech:'var(--err)',skip:'var(--muted)',find:'var(--find)',drop:'var(--warn)'};
+Object.entries(KC).forEach(([k,c])=>{const m=el('marker',{id:'ar-'+k,viewBox:'0 0 10 10',refX:'9',refY:'5',markerWidth:'7',markerHeight:'7',orient:'auto-start-reverse'},defs);el('path',{d:'M0,0 L10,5 L0,10 z',fill:c},m);});
+
+const XMIN=-20, XMAX=X(27)+130, YMIN=-90, YMAX=820;
+const gBg=el('g',{},vp), gE=el('g',{},vp), gN=el('g',{},vp);
+// fases
+const PH=[
+  {id:'orq',x0:XMIN,x1:X(5)+120,t:'1 · ORQUESTADOR',s:'task/manager.py'},
+  {id:'val',x0:X(5)+120,x1:X(14)+122+18,t:'2 · VALIDACIONES',s:'migracion_action.ejecutar()'},
+  {id:'mig',x0:X(14)+140,x1:X(20)+130,t:'3 · MIGRACIÓN EN BCCS',s:'_migracion_post_pre3 / _migracion_post_preR'},
+  {id:'cie',x0:X(20)+130,x1:XMAX,t:'4 · CIERRE Y REGISTRO',s:'_finalizar_ok'},
+];
+PH.forEach((p,i)=>{ el('rect',{x:p.x0,y:YMIN,width:p.x1-p.x0,height:YMAX-YMIN,fill:i%2?'var(--phase-b)':'var(--phase-a)'},gBg);
+  const t=el('text',{x:p.x0+20,y:YMIN+30,class:'phase-t'},gBg); t.textContent=p.t;
+  const s=el('text',{x:p.x0+20,y:YMIN+48,class:'phase-s'},gBg); s.textContent=p.s; });
+// banda técnica
+const TB={x:X(6)-118,y:-6,w:(X(11)+128)-(X(6)-118),h:252};
+el('rect',{x:TB.x,y:TB.y,width:TB.w,height:TB.h,rx:12,fill:'var(--err-soft)',stroke:'var(--err)','stroke-dasharray':'5 4','stroke-width':1.2,opacity:.9},gBg);
+const tbt=el('text',{x:TB.x+16,y:TB.y+20,class:'band-t',fill:'var(--err)'},gBg); tbt.textContent='FALLA TÉCNICA · REINTENTOS';
+// banda reclamo
+const RB={x:X(6)-118,y:BAND_Y,w:(X(27)+110)-(X(6)-118),h:96};
+const rbG=el('g',{class:'node',tabindex:0,role:'button','aria-label':'Cierre con reclamo: ver pasos','data-id':'band'},gN);
+el('rect',{x:RB.x,y:RB.y,width:RB.w,height:RB.h,rx:12,fill:'var(--warn-soft)',stroke:'var(--warn)','stroke-width':1.5,class:'shape'},rbG);
+const rbt=el('text',{x:RB.x+18,y:RB.y+26,class:'band-t',fill:'var(--warn)'},rbG); rbt.textContent='CIERRE CON RECLAMO · _cerrar_con_reclamo()  —  el registro se da por atendido, no se reintenta';
+const chips=['1 · Cargar reclamo (motivo 4272 + memo)','2 · Hora fin','3 · Actualizar estado según baja_realizada','4 · Registrar detalle','5 · Salir de la línea','↺ Siguiente registro'];
+let cx=RB.x+18; chips.forEach(c=>{const w=c.length*6.3+26; el('rect',{x:cx,y:RB.y+44,width:w,height:30,rx:15,fill:'var(--surface)',stroke:'var(--warn)','stroke-width':1},rbG); const t=el('text',{x:cx+13,y:RB.y+63,class:'chip-t'},rbG); t.textContent=c; cx+=w+12;});
+
+function port(n,p){ if(p==='r')return[n.x+n.w/2,n.y]; if(p==='l')return[n.x-n.w/2,n.y]; if(p==='t')return[n.x,n.y-n.h/2]; return[n.x,n.y+n.h/2]; }
+function route(e){
+  const s=byId[e.f], p0=port(s,e.fp);
+  let p3, tp=e.tp;
+  if(e.pt){p3=e.pt; tp='t';} else p3=port(byId[e.t],e.tp);
+  if(e.via) return [p0,...e.via,p3];
+  const H=x=>x==='r'||x==='l';
+  if(H(e.fp)&&H(tp)){ if(p0[1]===p3[1])return[p0,p3]; const mx=(p0[0]+p3[0])/2; return[p0,[mx,p0[1]],[mx,p3[1]],p3]; }
+  if(!H(e.fp)&&!H(tp)){ if(p0[0]===p3[0])return[p0,p3]; const my=(p0[1]+p3[1])/2; return[p0,[p0[0],my],[p3[0],my],p3]; }
+  if(!H(e.fp)&&H(tp)) return[p0,[p0[0],p3[1]],p3];
+  return[p0,[p3[0],p0[1]],p3];
+}
+E.forEach(e=>{
+  const k=e.k||'main', pts=route(e);
+  const g=el('g',{'data-br':e.br||'','data-from':e.f,'data-to':e.t||''},gE);
+  const d='M'+pts.map(p=>p.join(',')).join(' L');
+  el('path',{d,fill:'none',stroke:KC[k],'stroke-width':k==='main'?1.6:1.8,'stroke-dasharray':(k==='tech'||k==='skip'||k==='drop'||k==='find')?'6 4':'', 'marker-end':`url(#ar-${k})`,'stroke-linejoin':'round'},g);
+  if(e.lb){
+    let lx,ly,anc='middle';
+    if(e.lpos){[lx,ly,anc]=e.lpos;}
+    else{ const [a,b]=pts; if(a[1]===b[1]){lx=(a[0]+b[0])/2;ly=a[1]-8;} else {lx=a[0]+8;ly=(a[1]+b[1])/2+4;anc='start';} }
+    const t=el('text',{x:lx,y:ly,'text-anchor':anc,class:'e-lbl',fill:KC[k]},g); t.textContent=e.lb;
+  }
+});
+
+const STY={
+ process:{f:'var(--surface)',s:'var(--line)',sw:1.5},
+ db:{f:'var(--surface)',s:'var(--accent)',sw:1.5},
+ web:{f:'var(--surface)',s:'var(--accent)',sw:1.5,da:'5 3'},
+ mig:{f:'var(--mig-soft)',s:'var(--mig)',sw:1.8},
+ decision:{f:'var(--dec-fill)',s:'var(--accent)',sw:1.6},
+ tdec:{f:'var(--surface)',s:'var(--err)',sw:1.5},
+ pill:{f:'var(--warn-soft)',s:'var(--warn)',sw:1.5},
+ stop:{f:'var(--err-soft)',s:'var(--err)',sw:1.5},
+ neutral:{f:'var(--surface)',s:'var(--muted)',sw:1.3,da:'4 3'},
+ flag:{f:'var(--mig)',s:'var(--mig)',sw:1.5},
+ start:{f:'var(--accent)',s:'var(--accent)',sw:1.5},
+};
+const TAG={db:'BD',web:'WEB',mig:'MODIFICA BCCS'};
+N.forEach(n=>{
+  const st=STY[n.t]; const g=el('g',{class:'node',tabindex:0,role:'button','data-id':n.id,'data-br':n.br||'','aria-label':n.l.replace(/\n/g,' ')},gN);
+  const x0=n.x-n.w/2,y0=n.y-n.h/2; let shp;
+  if(n.t==='decision'||n.t==='tdec') shp=el('polygon',{points:`${n.x},${y0} ${n.x+n.w/2},${n.y} ${n.x},${y0+n.h} ${x0},${n.y}`},g);
+  else if(n.t==='flag'){const c=14; shp=el('polygon',{points:`${x0+c},${y0} ${x0+n.w-c},${y0} ${x0+n.w},${n.y} ${x0+n.w-c},${y0+n.h} ${x0+c},${y0+n.h} ${x0},${n.y}`},g);}
+  else shp=el('rect',{x:x0,y:y0,width:n.w,height:n.h,rx:(n.t==='pill'||n.t==='stop'||n.t==='neutral'||n.t==='start')?n.h/2>22?18:n.h/2:8},g);
+  shp.setAttribute('class','shape'); shp.setAttribute('fill',st.f); shp.setAttribute('stroke',st.s); shp.setAttribute('stroke-width',st.sw); if(st.da)shp.setAttribute('stroke-dasharray',st.da);
+  const lines=n.l.split('\n'); const fs=(n.t==='pill'||n.t==='stop'||n.t==='neutral'||n.t==='tdec'||n.t==='flag')?12:13; const lh=fs+3;
+  const inv=(n.t==='flag'||n.t==='start');
+  const ty0=n.y-((lines.length-1)*lh)/2+fs*0.36 + (TAG[n.t]?5:0);
+  if(TAG[n.t]){const tg=el('text',{x:n.x,y:y0+13,'text-anchor':'middle',class:'n-sub'},g); tg.textContent=TAG[n.t]; if(n.t==='mig')tg.setAttribute('fill','var(--mig)');}
+  lines.forEach((ln,i)=>{const t=el('text',{x:n.x,y:ty0+i*lh,'text-anchor':'middle',class:'n-txt'+(fs<13?' small':'')},g); t.textContent=ln; if(inv)t.style.fill='var(--surface)'; if(n.t==='flag'){t.style.fontFamily='var(--f-mono)';t.style.fontSize='11px';} });
+  const fl=findByNode[n.id];
+  if(fl){ fl.forEach((num,i)=>{ const bx=(n.t==='decision'||n.t==='tdec')? n.x+n.w/4+6+i*24 : x0+n.w-4-i*24; const by=(n.t==='decision'||n.t==='tdec')? y0+n.h/4-6 : y0+2;
+    const b=el('g',{class:'badge'},g); el('circle',{cx:bx,cy:by,r:11},b); const t=el('text',{x:bx,y:by+4,'text-anchor':'middle'},b); t.textContent=num; }); }
+});
+
+// ---------- PAN / ZOOM ----------
+const view={k:1,tx:0,ty:0};
+function apply(){ vp.setAttribute('transform',`translate(${view.tx},${view.ty}) scale(${view.k})`); }
+function fitTo(x0,y0,x1,y1){ const r=svg.getBoundingClientRect(); const pad=20; const k=Math.min((r.width-pad*2)/(x1-x0),(r.height-pad*2)/(y1-y0)); view.k=Math.max(.12,Math.min(2.2,k)); view.tx=(r.width-(x1-x0)*view.k)/2-x0*view.k; view.ty=(r.height-(y1-y0)*view.k)/2-y0*view.k; apply(); }
+function zoomAt(f,cx,cy){ const nk=Math.max(.1,Math.min(3,view.k*f)); const ff=nk/view.k; view.tx=cx-(cx-view.tx)*ff; view.ty=cy-(cy-view.ty)*ff; view.k=nk; apply(); }
+const REG={all:[XMIN,YMIN,XMAX,YMAX],orq:[XMIN,YMIN,X(5)+130,YMAX-180],val:[X(5)+120,YMIN,X(14)+140,YMAX],mig:[X(14)+130,YMIN,X(20)+140,YMAX],cie:[X(20)+130,YMIN,XMAX,YMAX],tec:[TB.x-20,TB.y-60,TB.x+TB.w+20,TB.y+TB.h+90]};
+svg.addEventListener('wheel',e=>{ e.preventDefault(); const r=svg.getBoundingClientRect(); if(e.ctrlKey||e.metaKey){ zoomAt(Math.exp(-e.deltaY*0.0022),e.clientX-r.left,e.clientY-r.top);} else { view.tx-= (e.deltaX + (e.shiftKey?0:e.deltaY)); if(e.shiftKey) view.ty-=e.deltaY; apply(); } },{passive:false});
+const ptrs=new Map(); let moved=0, pinch=null, downNode=null;
+svg.addEventListener('pointerdown',e=>{ ptrs.set(e.pointerId,{x:e.clientX,y:e.clientY}); svg.setPointerCapture(e.pointerId); moved=0; downNode=e.target.closest('.node'); if(ptrs.size===2){const [a,b]=[...ptrs.values()]; pinch={d:Math.hypot(a.x-b.x,a.y-b.y)};} svg.classList.add('dragging'); });
+svg.addEventListener('pointermove',e=>{ if(!ptrs.has(e.pointerId))return; const p=ptrs.get(e.pointerId); const dx=e.clientX-p.x, dy=e.clientY-p.y; p.x=e.clientX;p.y=e.clientY;
+  if(ptrs.size===2&&pinch){ const [a,b]=[...ptrs.values()]; const d=Math.hypot(a.x-b.x,a.y-b.y); const r=svg.getBoundingClientRect(); zoomAt(d/pinch.d,(a.x+b.x)/2-r.left,(a.y+b.y)/2-r.top); pinch.d=d; moved+=10; return; }
+  moved+=Math.abs(dx)+Math.abs(dy); view.tx+=dx; view.ty+=dy; apply(); });
+function up(e){ if(!ptrs.has(e.pointerId))return; ptrs.delete(e.pointerId); if(ptrs.size<2)pinch=null; if(ptrs.size===0){svg.classList.remove('dragging'); if(moved<6&&downNode) openNode(downNode.getAttribute('data-id')); downNode=null;} }
+svg.addEventListener('pointerup',up); svg.addEventListener('pointercancel',up);
+document.getElementById('zIn').onclick=()=>{const r=svg.getBoundingClientRect();zoomAt(1.25,r.width/2,r.height/2);};
+document.getElementById('zOut').onclick=()=>{const r=svg.getBoundingClientRect();zoomAt(.8,r.width/2,r.height/2);};
+document.getElementById('zFit').onclick=()=>{setPh('all');};
+gN.addEventListener('keydown',e=>{ if(e.key==='Enter'||e.key===' '){const n=e.target.closest('.node'); if(n){e.preventDefault();openNode(n.getAttribute('data-id'));}} });
+
+// ---------- CONTROLES ----------
+function setPh(ph){ document.querySelectorAll('#phases button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.ph===ph)); fitTo(...REG[ph]); }
+document.querySelectorAll('#phases button').forEach(b=>b.onclick=()=>setPh(b.dataset.ph));
+function setRoute(r){ document.querySelectorAll('#routes button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.r===r));
+  document.querySelectorAll('[data-br]').forEach(g=>{ const br=g.getAttribute('data-br'); g.classList.toggle('dim', r!=='all' && br!=='' && br!==r); }); }
+document.querySelectorAll('#routes button').forEach(b=>b.onclick=()=>setRoute(b.dataset.r));
+const tg=document.getElementById('tgFind');
+function setFind(on){ tg.setAttribute('aria-pressed',on); svg.classList.toggle('show-find',on); }
+tg.onclick=()=>setFind(tg.getAttribute('aria-pressed')!=='true');
+setFind(true);
+
+// ---------- PANEL ----------
+const panel=document.getElementById('panel'), pBody=document.getElementById('pBody');
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+function openNode(id){
+  const d=D[id]; if(!d)return; const n=byId[id];
+  document.querySelectorAll('.node.sel').forEach(x=>x.classList.remove('sel'));
+  const g=gN.querySelector(`[data-id="${id}"]`); if(g)g.classList.add('sel');
+  document.getElementById('pKind').textContent=d.k;
+  document.getElementById('pName').textContent= id==='band' ? 'Cierre con reclamo' : n.l.replace(/\n/g,' ');
+  let h='';
+  if(d.d) h+=`<div><h3>Qué hace</h3><p>${esc(d.d)}</p></div>`;
+  if(d.o) h+=`<div><h3>Resultados</h3><ul class="outs">${d.o.map(o=>`<li><span class="tag ${o[0]}">${esc(o[1])}</span><span>${esc(o[2])}</span></li>`).join('')}</ul></div>`;
+  if(d.li) h+=`<div><h3>Detalle</h3><ul class="plain">${d.li.map(x=>`<li>${esc(x)}</li>`).join('')}</ul></div>`;
+  if(d.cx) h+=`<div><h3>Campos del contexto</h3><div class="ctx">${d.cx.map(x=>`<span>${esc(x)}</span>`).join('')}</div></div>`;
+  const fl=(findByNode[id]||[]).map(k=>F.find(f=>f.n===k));
+  fl.forEach(f=>{ h+=`<div class="find-box"><b>Hallazgo ${f.n} · ${esc(f.t)}</b><span><span class="k" style="font:600 10.5px var(--f-ui);letter-spacing:.07em;text-transform:uppercase;color:var(--muted)">Hoy</span> ${esc(f.hoy)}</span><span><span style="font:600 10.5px var(--f-ui);letter-spacing:.07em;text-transform:uppercase;color:var(--muted)">A evaluar</span> ${esc(f.ev)}</span></div>`; });
+  if(d.f) h+=`<div><h3>Archivos</h3><div class="files">${d.f.map(x=>`<code>${esc(x)}</code>`).join('')}</div></div>`;
+  pBody.innerHTML=h; panel.hidden=false; pBody.scrollTop=0;
+}
+document.getElementById('pClose').onclick=()=>{panel.hidden=true; document.querySelectorAll('.node.sel').forEach(x=>x.classList.remove('sel'));};
+document.addEventListener('keydown',e=>{ if(e.key==='Escape'&&!panel.hidden) document.getElementById('pClose').click(); });
+
+// ---------- TARJETAS DE HALLAZGOS ----------
+const fg=document.getElementById('fgrid');
+F.forEach(f=>{ const c=document.createElement('article'); c.className='fcard';
+  c.innerHTML=`<div class="fh"><span class="num">${f.n}</span><span class="sev ${f.s}">${f.s}</span><h3>${esc(f.t)}</h3></div>
+  <p><span class="k">Hoy</span>${esc(f.hoy)}</p><p><span class="k">A evaluar</span>${esc(f.ev)}</p>
+  <button class="btn go" data-node="${f.node}">Ver en el diagrama →</button>`;
+  fg.appendChild(c); });
+fg.addEventListener('click',e=>{ const b=e.target.closest('.go'); if(!b)return; const n=byId[b.dataset.node];
+  setFind(true); document.getElementById('stage').scrollIntoView({behavior:'smooth',block:'center'});
+  const r=svg.getBoundingClientRect(); view.k=Math.max(view.k,.9); view.tx=r.width*0.38-n.x*view.k; view.ty=r.height/2-n.y*view.k; apply(); openNode(n.id); });
+
+// inicio
+requestAnimationFrame(()=>setPh('all'));
+let rt; window.addEventListener('resize',()=>{clearTimeout(rt); rt=setTimeout(()=>{const a=document.querySelector('#phases button[aria-pressed="true"]'); setPh(a?a.dataset.ph:'all');},150);});
+})();
+</script>

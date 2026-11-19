@@ -81,7 +81,7 @@ class MailService:
         email.set_content(mensaje)
 
         try:
-            with smtplib.SMTP(self.host, self.port) as smtp:
+            with smtplib.SMTP(self.host, self.port, timeout=10) as smtp:
                 if self.use_tls:
                     smtp.starttls()
                 smtp.login(self.user, self.password)

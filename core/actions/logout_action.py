@@ -16,9 +16,9 @@ class LogoutAction(ActionBase):
         except Exception as e:
             self.manejar_excepcion(e)
             try:
-                self.executor.ejecutar_bloque("reboot_validation")
+                self.executor.ejecutar_bloque("reboot_logout")
             except Exception:
-                self.logger.warning("⚠️ Falló también reboot_validation", exc_info=True)
+                self.logger.warning("⚠️ Falló también reboot_logout", exc_info=True)
 
             raise  
 

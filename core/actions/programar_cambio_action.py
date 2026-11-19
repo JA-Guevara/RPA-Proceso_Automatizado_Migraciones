@@ -16,7 +16,7 @@ class ProgramarCambioAction(ActionBase):
 
             if not existe_error:
                 self.logger.info("✅ Validación exitosa, ejecutando flujo post a pre...")
-                self.executor.ejecutar_bloque("flow_post_a_pre")
+                self.executor.ejecutar_bloque("flow")
                 return True
 
             self.contexto["existe_error"] = True
@@ -24,13 +24,13 @@ class ProgramarCambioAction(ActionBase):
 
             if "CUENTA ESTA BLOQUEADA" in mensaje_error:
                 self.logger.warning("🔐 Cuenta bloqueada detectada. Ejecutando flujo de desbloqueo...")
-                self.executor.ejecutar_bloque("desbloqueo")
+                self.executor.ejecutar_bloque("flow_desbloqueo")
 
                 self.logger.info("🔄 Reintentando validación y flujo post a pre después del desbloqueo...")
                 self.executor.ejecutar_bloque("validation")
 
                 if not self.executor.contexto.get("existe_error", False):
-                    self.executor.ejecutar_bloque("flow_post_a_pre")
+                    self.executor.ejecutar_bloque("flow")
                     return True
                 else:
                     self.logger.error("❌ Reintento fallido tras desbloqueo. Se procede a reboot_validation...")

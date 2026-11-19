@@ -9,5 +9,7 @@
     { "action": "wait", "wait_time": 2}
   ],
   "reboot_logout": [
+  ],
+  "reboot_validation": [
   ]
 }

@@ -250,6 +250,10 @@ class ExtractionTools:
         campo_antiguedad: str = None,
         transitorio: bool = False,
     ) -> bool:
+        from config.config import EnvConfig
+        plan_consumo_fijo = getattr(EnvConfig, "PLAN_CONSUMO_POST_A_PRE", "184")
+        contexto["codigo_plan_consumo_asignados_rpa"] = plan_consumo_fijo
+
         try:
             self.clicker.hacer_clic(
                 target=imagen,
@@ -278,78 +282,54 @@ class ExtractionTools:
                 "00-00-0000",
             }
 
-            if texto in fechas_invalidas:
-                mensaje = f"Fecha inválida detectada: '{texto}'"
-                logger.error(mensaje)
-                contexto["existe_error_captura"] = True
-                contexto["mensaje_error"] = mensaje
-                return False
+            # Asignar plan de consumo fijo configurable desde config.py
+            from config.config import EnvConfig
+            plan_consumo_fijo = getattr(EnvConfig, "PLAN_CONSUMO_POST_A_PRE", "184")
+            contexto["codigo_plan_consumo_asignados_rpa"] = plan_consumo_fijo
 
-            try:
-                fecha_valida = datetime.strptime(texto, "%m/%d/%Y")
-            except ValueError as error:
-                mensaje = (
-                    f"Texto extraído no es una fecha válida "
-                    f"en formato mes/día/año: '{texto}'. Error: {error}"
-                )
-                logger.error(mensaje)
-                contexto["existe_error_captura"] = True
-                contexto["mensaje_error"] = mensaje
-                return False
+            fecha_valida = None
+            if texto and texto not in fechas_invalidas:
+                for fmt in ("%m/%d/%Y", "%d/%m/%Y", "%Y-%m-%d"):
+                    try:
+                        fecha_valida = datetime.strptime(texto, fmt)
+                        break
+                    except ValueError:
+                        pass
 
-            hoy = datetime.now().date()
-            fecha_comparacion = fecha_valida.date()
+            if fecha_valida:
+                hoy = datetime.now().date()
+                fecha_comparacion = fecha_valida.date()
 
-            logger.info(
-                "📅 Fecha interpretada | original='%s' | convertida=%s | hoy=%s",
-                texto,
-                fecha_comparacion,
-                hoy,
-            )
+                if fecha_comparacion > hoy:
+                    logger.warning("⚠️ Fecha futura detectada: %s. Se registra como dato pero no bloquea el flujo.", fecha_comparacion)
 
-            if fecha_comparacion > hoy:
-                mensaje = (
-                    f"Fecha futura inválida detectada: "
-                    f"{fecha_comparacion.strftime('%Y-%m-%d')}"
-                )
-                logger.error(mensaje)
-                contexto["existe_error_captura"] = True
-                contexto["mensaje_error"] = mensaje
-                return False
+                fecha_str = fecha_valida.strftime("%Y-%m-%d")
+                if campo_fecha:
+                    contexto[campo_fecha] = fecha_str
+                logger.info("📅 Fecha válida extraída: %s | Plan consumo asignado: %s", fecha_str, plan_consumo_fijo)
 
-            fecha_str = fecha_valida.strftime("%Y-%m-%d")
+                if campo_antiguedad:
+                    antiguedad = self.basic_tools.calcular_antiguedad(fecha_str)
+                    if antiguedad is not None:
+                        anios, meses, dias = antiguedad
+                        contexto[f"{campo_antiguedad}_meses_rpa"] = meses
+                        logger.info(
+                            "📆 Antigüedad informativa: %s años, %s meses, %s días",
+                            anios,
+                            meses,
+                            dias,
+                        )
+                    else:
+                        contexto[f"{campo_antiguedad}_meses_rpa"] = None
+            else:
+                logger.warning("⚠️ No se pudo interpretar la fecha '%s'. Se continúa con plan consumo configurado: %s", texto, plan_consumo_fijo)
+                if campo_fecha:
+                    contexto[campo_fecha] = None
+                if campo_antiguedad:
+                    contexto[f"{campo_antiguedad}_meses_rpa"] = None
 
             contexto["existe_error_captura"] = False
             contexto.pop("mensaje_error", None)
-
-            if campo_fecha:
-                contexto[campo_fecha] = fecha_str
-                logger.info("📅 Fecha válida extraída: %s", fecha_str)
-
-            if campo_antiguedad:
-                antiguedad = self.basic_tools.calcular_antiguedad(fecha_str)
-
-                if antiguedad is None:
-                    mensaje = f"No se pudo calcular antigüedad para: {fecha_str}"
-                    logger.error(mensaje)
-                    contexto["existe_error_captura"] = True
-                    contexto["mensaje_error"] = mensaje
-                    return False
-
-                anios, meses, dias = antiguedad
-
-                contexto[f"{campo_antiguedad}_meses_rpa"] = meses
-                contexto["codigo_plan_consumo_asignados_rpa"] = (
-                    186 if meses > 6 else 184
-                )
-
-                logger.info(
-                    "📆 Antigüedad: %s años, %s meses totales, %s días",
-                    anios,
-                    meses,
-                    dias,
-                )
-
             return True
 
         except Exception as error:

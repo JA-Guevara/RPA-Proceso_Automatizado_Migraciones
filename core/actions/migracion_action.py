@@ -102,12 +102,17 @@ class MigracionActions:
             
 
             id_tipo_baja = str(self.contexto.get("id_tipo_baja") or "").strip()
+            tipo_baja = str(self.contexto.get("tipo_baja") or "").strip().upper()
             plan_actual = str(self.contexto.get("plan_actual_rpa") or "").strip()
 
-            omitir_validacion_estado = (
-                id_tipo_baja == "2"
-                and plan_actual == "Plan Comercial LTE Pospago 2 /PLAN_PREPAGO_R"
+            es_plan_r = "PLAN_PREPAGO_R" in plan_actual.upper() or "PREPAGO_R" in plan_actual.upper()
+            es_migracion_post_a_pre = (
+                id_tipo_baja == "2" 
+                or "MIGRACIÓN DE POST PAGO A PRE PAGO" in tipo_baja
+                or "MIGRACION DE POST PAGO A PRE PAGO" in tipo_baja
             )
+
+            omitir_validacion_estado = es_migracion_post_a_pre and es_plan_r
 
             if omitir_validacion_estado:
                 self.logger.info(
@@ -133,6 +138,14 @@ class MigracionActions:
                 self.logger.info("🚀 Iniciando Migración de Post Pago a Pre Pago")
                 if not self._migracion_post_preR():
                     return True
+
+            else:
+                self.logger.error("❌ Tipo de baja no reconocido: '%s'", tipo)
+                id_sharepoint = self.contexto.get("id_sharepoint")
+                self.contexto["baja_realizada"] = "Baja Observada"
+                self.contexto["mensaje_memo"] = f"Baja Observada - ID solicitud: {id_sharepoint}"
+                self.registrar_observacion(f"Tipo de baja desconocido: '{tipo}'", tipo="error")
+                return self._cerrar_con_reclamo()
 
             if not self._validar_plan_final():
                 validacion_exitosa = self.contexto.get("validacion_exitosa", False)
@@ -195,11 +208,19 @@ class MigracionActions:
 
 
     def _migracion_post_preR(self) -> bool:
-        ValidationIdctlActualAction(self.variables_base, self.contexto).ejecutar()
-        VerificarServicioLdi_900Action(self.variables_base, self.contexto).ejecutar()
+        if not ValidationIdctlActualAction(self.variables_base, self.contexto).ejecutar():
+            self._cerrar_con_reclamo()
+            return False
+        if not VerificarServicioLdi_900Action(self.variables_base, self.contexto).ejecutar():
+            self._cerrar_con_reclamo()
+            return False
         self.contexto["migracion_ejecutada"] = True
-        CrearServicioFflteAction(self.variables_base, self.contexto).ejecutar()
-        ProgramarCambioAction(self.variables_base, self.contexto).ejecutar()
+        if not CrearServicioFflteAction(self.variables_base, self.contexto).ejecutar():
+            self._cerrar_con_reclamo()
+            return False
+        if not ProgramarCambioAction(self.variables_base, self.contexto).ejecutar():
+            self._cerrar_con_reclamo()
+            return False
         return True
 
     def _cerrar_con_reclamo(self) -> bool:
@@ -231,12 +252,18 @@ class MigracionActions:
             self.logger.error(f"⚠️ Falla técnica en carga de reclamo post-migración: {e}", exc_info=True)
             self._anexar_observacion(f"Migración OK; falló carga de reclamo: {e}")
 
-        try:
-            self._derivacion_sms()
-        except Exception as e:
-            self.logger.error(f"⚠️ Falla técnica en derivación SMS post-migración: {e}", exc_info=True)
-            self.contexto["notificacion_baja_rpa"] = False
-            self._anexar_observacion(f"Migración OK; falló derivación SMS: {e}")
+        if self.contexto.get("baja_realizada") == "Baja Procesada":
+            try:
+                self._derivacion_sms()
+            except Exception as e:
+                self.logger.error(f"⚠️ Falla técnica en derivación SMS post-migración: {e}", exc_info=True)
+                self.contexto["notificacion_baja_rpa"] = False
+                self._anexar_observacion(f"Migración OK; falló derivación SMS: {e}")
+        else:
+            self.logger.info(
+                "ℹ️ SMS omitido: la baja no culminó en 'Baja Procesada' (estado actual: '%s')",
+                self.contexto.get("baja_realizada")
+            )
 
         TimeTools.marcar_hora_fin(self.contexto, self.__class__.__name__, self.logger)
         self.estado_adapter.actualizar_estado_migracion(self.contexto)

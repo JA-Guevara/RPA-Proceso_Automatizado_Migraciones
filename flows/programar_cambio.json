@@ -10,11 +10,11 @@
   ],
 
   "flow": [
-    { "action": "click_y_escribir", "target": "programar_cambio.plan_comercial_field", "value": "79","offset_x":70, "clicks": 1},
+    { "action": "click_y_escribir", "target": "programar_cambio.plan_comercial_field", "value": "$codigo_plan_comercial_prepago_r","offset_x":70, "clicks": 1},
     { "action": "press_key", "target": "tab" },
     { "action": "click", "target": "programar_cambio.procesar_button","clicks": 1,"transitorio": true },
     { "action": "wait", "wait_time": 1},
-    { "action": "click_y_escribir", "target": "programar_cambio.plan_consumo_field", "value": "2400","offset_x": 70, "clicks": 1},
+    { "action": "click_y_escribir", "target": "programar_cambio.plan_consumo_field", "value": "$codigo_plan_consumo_prepago_r","offset_x": 70, "clicks": 1},
     { "action": "click", "target": "programar_cambio.tipos_plan_lista","clicks": 1 ,"offset_x": 70},
     { "action": "click", "target": "programar_cambio.inmediato_option","clicks": 1 },
     { "action": "click", "target": "programar_cambio.procesar_button","clicks": 1,"transitorio": true },
